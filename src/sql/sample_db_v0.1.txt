@@ -1,0 +1,2308 @@
+---------------------------------------------------------------------------
+-- db create
+---------------------------------------------------------------------------
+-- windown
+--CREATE DATABASE "SAMBOSANUP_MES" WITH TEMPLATE = template0 ENCODING = 'UTF8';
+-- linux
+--CREATE DATABASE "SAMBOSANUP_MES" WITH TEMPLATE = template0 ENCODING = 'UTF8' LC_COLLATE = 'ko_KR.UTF-8' LC_CTYPE = 'ko_KR.UTF-8';
+---------------------------------------------------------------------------
+-- user create
+---------------------------------------------------------------------------
+-- CREATE ROLE rntime LOGIN ENCRYPTED PASSWORD 'md59d4602de644121f9dd221de99f2d80c1' SUPERUSER INHERIT CREATEDB CREATEROLE NOREPLICATION;
+
+---------------------------------------------------------------------------
+-- 채번
+---------------------------------------------------------------------------
+CREATE TABLE MCC012
+(
+    SEQ_KEY      VARCHAR(50) NOT NULL , 
+    SEQ_NO       VARCHAR(50) NOT NULL
+);
+
+CREATE UNIQUE INDEX XPK_MCC012 ON MCC012
+(SEQ_KEY ASC, SEQ_NO ASC);
+
+ALTER TABLE MCC012
+    ADD CONSTRAINT PK_MCC012 PRIMARY KEY (SEQ_KEY,SEQ_NO);
+
+
+CREATE TABLE MCC013
+(
+    ITEM_CD      VARCHAR(30) NOT NULL , 
+    BOM_VER      VARCHAR(20) NOT NULL
+);
+
+CREATE UNIQUE INDEX XPK_MCC013 ON MCC013
+(ITEM_CD ASC, BOM_VER ASC);
+
+ALTER TABLE MCC013
+    ADD CONSTRAINT PK_MCC013 PRIMARY KEY (ITEM_CD,BOM_VER);
+
+---------------------------------------------------------------------------
+-- 채번 2022-10-25
+---------------------------------------------------------------------------
+INSERT INTO MCC012 (SEQ_KEY,SEQ_NO) VALUES ('WPM001','WPM00120221025000001');
+INSERT INTO MCC012 (SEQ_KEY,SEQ_NO) VALUES ('WPMTMP','MWPTMP20220929000001');
+
+-- 폐수처리
+INSERT INTO MCC012 (SEQ_KEY,SEQ_NO) VALUES ('MPL001','MPL00120230223000001');
+
+-- 도금(대차 위치)
+INSERT INTO MCC012 (SEQ_KEY,SEQ_NO) VALUES ('MPL002','MPL00220230223000001');
+
+-- 도금(크로메이트)
+INSERT INTO MCC012 (SEQ_KEY,SEQ_NO) VALUES ('MPL003','MPL00320230223000001');
+
+-- 재고실사표
+INSERT INTO MCC012 (SEQ_KEY,SEQ_NO) VALUES ('MIR001','MIR00120230223000001');
+
+-- 완제품 마감
+INSERT INTO MCC012 (SEQ_KEY,SEQ_NO) VALUES ('MWP006','MWP00620230315000001');
+
+---------------------------------------------------------------------------
+-- LOT 채번 일자(8)+ 구분(2) + 순번(3) 
+---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION LOT_SEQ_NEXTVAL (L_GUBUN VARCHAR)
+    RETURNS VARCHAR AS $L_NEW_SEQ$
+DECLARE
+  L_NEW_SEQ VARCHAR;
+  L_CHK_KEY_SEQ VARCHAR;
+BEGIN
+  SELECT SUBSTR(SEQ_NO,1,9)||SEQ_KEY||'-'||LPAD(CAST(CAST(SUBSTR(SEQ_NO,13,3) AS INTEGER)+1 AS TEXT),3,'0')
+  INTO L_NEW_SEQ
+  FROM MCC012
+  WHERE SEQ_KEY = L_GUBUN
+  AND SUBSTR(SEQ_NO,1,8) = TO_CHAR(now(),'YYYYMMDD')
+  FOR UPDATE;
+
+  IF L_NEW_SEQ IS NULL THEN
+     L_NEW_SEQ := TO_CHAR(now(),'YYYYMMDD')||'-'||L_GUBUN||'-'||'001';
+     SELECT SEQ_KEY
+     INTO L_CHK_KEY_SEQ
+     FROM MCC012
+     WHERE SEQ_KEY = L_GUBUN
+     ;
+     IF L_CHK_KEY_SEQ IS NULL THEN
+         INSERT INTO MCC012 (SEQ_KEY,SEQ_NO) VALUES (L_GUBUN,L_NEW_SEQ);
+     END IF;
+  END IF;
+
+  UPDATE MCC012
+  SET SEQ_NO = L_NEW_SEQ
+  WHERE SEQ_KEY = L_GUBUN;
+
+  RETURN L_NEW_SEQ;
+END;
+$L_NEW_SEQ$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION EXT1_LOT_SEQ_NEXTVAL (L_GUBUN VARCHAR)
+    RETURNS VARCHAR AS $L_NEW_SEQ$
+DECLARE
+  L_NEW_SEQ VARCHAR;
+BEGIN
+  SELECT SEQ_KEY||'-'||LPAD(CAST(CAST(SUBSTR(SEQ_NO,17,2) AS INTEGER)+1 AS TEXT),2,'0')
+  INTO L_NEW_SEQ
+  FROM MCC012
+  WHERE SEQ_KEY = L_GUBUN
+  FOR UPDATE;
+
+  IF L_NEW_SEQ IS NULL THEN
+     L_NEW_SEQ := L_GUBUN||'-'||'01';
+     INSERT INTO MCC012 (SEQ_KEY,SEQ_NO) VALUES (L_GUBUN,L_NEW_SEQ);
+  END IF;
+
+  UPDATE MCC012
+  SET SEQ_NO = L_NEW_SEQ
+  WHERE SEQ_KEY = L_GUBUN;
+
+  RETURN L_NEW_SEQ;
+END;
+$L_NEW_SEQ$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION EXT2_LOT_SEQ_NEXTVAL (L_GUBUN VARCHAR)
+    RETURNS VARCHAR AS $L_NEW_SEQ$
+DECLARE
+  L_NEW_SEQ VARCHAR;
+BEGIN
+  SELECT SEQ_KEY||'-'||LPAD(CAST(CAST(SUBSTR(SEQ_NO,20,2) AS INTEGER)+1 AS TEXT),2,'0')
+  INTO L_NEW_SEQ
+  FROM MCC012
+  WHERE SEQ_KEY = L_GUBUN
+  FOR UPDATE;
+
+  IF L_NEW_SEQ IS NULL THEN
+     L_NEW_SEQ := L_GUBUN||'-'||'01';
+     INSERT INTO MCC012 (SEQ_KEY,SEQ_NO) VALUES (L_GUBUN,L_NEW_SEQ);
+  END IF;
+
+  UPDATE MCC012
+  SET SEQ_NO = L_NEW_SEQ
+  WHERE SEQ_KEY = L_GUBUN;
+
+  RETURN L_NEW_SEQ;
+END;
+$L_NEW_SEQ$ LANGUAGE plpgsql;
+
+---------------------------------------------------------------------------
+-- TABLE 채번 테이블(6)+ 일자(8)+ 순번(6) 
+---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION TABLE_SEQ_NEXTVAL (L_GUBUN VARCHAR)
+    RETURNS VARCHAR AS $L_NEW_SEQ$
+DECLARE
+  L_NEW_SEQ VARCHAR;
+  L_CHK_KEY_SEQ VARCHAR;
+BEGIN
+
+  SELECT SEQ_KEY||SUBSTR(SEQ_NO,7,8)||LPAD(CAST(CAST(SUBSTR(SEQ_NO,15,6) AS INTEGER)+1 AS TEXT),6,'0')
+  INTO L_NEW_SEQ
+  FROM MCC012
+  WHERE SEQ_KEY = L_GUBUN
+  AND SUBSTR(SEQ_NO,7,8) = TO_CHAR(now(),'YYYYMMDD')
+  FOR UPDATE;
+
+  IF L_NEW_SEQ IS NULL THEN
+     L_NEW_SEQ := L_GUBUN||TO_CHAR(now(),'YYYYMMDD')||'000001';
+     SELECT SEQ_KEY
+     INTO L_CHK_KEY_SEQ
+     FROM MCC012
+     WHERE SEQ_KEY = L_GUBUN
+     ;
+     IF L_CHK_KEY_SEQ IS NULL THEN
+         INSERT INTO MCC012 (SEQ_KEY,SEQ_NO) VALUES (L_GUBUN,L_NEW_SEQ);
+     END IF;
+  END IF;
+
+  UPDATE MCC012
+  SET SEQ_NO = L_NEW_SEQ
+  WHERE SEQ_KEY = L_GUBUN;
+
+  RETURN L_NEW_SEQ;
+END;
+$L_NEW_SEQ$ LANGUAGE plpgsql;
+
+---------------------------------------------------------------------------
+-- BOM VER : BOM_VERSION_00000001
+---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION GET_BOM_VER(L_ITEM_CD VARCHAR, L_NEXT_YN VARCHAR)
+    RETURNS VARCHAR AS $L_NEW_SEQ$
+DECLARE
+  L_BOM_VER VARCHAR;
+BEGIN
+
+  IF L_ITEM_CD IS NULL OR L_ITEM_CD = '' THEN
+      L_BOM_VER := '';
+      RETURN L_BOM_VER;
+  END IF;   
+
+  IF L_NEXT_YN = 'Y' THEN
+     SELECT SUBSTR(BOM_VER,1,12)||LPAD(CAST(CAST(SUBSTR(BOM_VER,13,8) AS INTEGER)+1 AS TEXT),8,'0')
+     INTO L_BOM_VER
+     FROM MCC013
+     WHERE ITEM_CD = L_ITEM_CD
+     FOR UPDATE;
+  END IF;
+
+  IF L_NEXT_YN = 'N' THEN
+     SELECT BOM_VER
+     INTO L_BOM_VER
+     FROM MCC013
+     WHERE ITEM_CD = L_ITEM_CD
+     FOR UPDATE;
+  END IF;  
+  
+
+  IF L_BOM_VER IS NULL THEN
+     L_BOM_VER := 'BOM_VERSION_'||'00000000';
+     INSERT INTO MCC013 (ITEM_CD,BOM_VER) VALUES (L_ITEM_CD,L_BOM_VER);
+  END IF; 
+
+  UPDATE MCC013
+  SET BOM_VER = L_BOM_VER
+  WHERE ITEM_CD = L_ITEM_CD;
+
+  RETURN L_BOM_VER;
+END;
+$L_NEW_SEQ$ LANGUAGE plpgsql;
+
+
+---------------------------------------------------------------------------
+-- 메뉴 
+---------------------------------------------------------------------------
+CREATE TABLE MCC901
+(
+    MENU_ID              VARCHAR(10) NOT NULL , 
+    MENU_NM              VARCHAR(200) NULL ,
+    PAGE_URL             VARCHAR(200) NULL ,
+    MENU_LVL             INTEGER  NULL ,
+    SORT_ORD             INTEGER NULL ,
+    UP_MENU_ID           VARCHAR(10) NULL ,
+    USE_YN               VARCHAR(1), 
+    WRITE_DT             TIMESTAMP NULL,
+    WRITE_ID             VARCHAR(30),
+    UPDATE_DT            TIMESTAMP NULL,
+    UPDATE_ID            VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MCC901 ON MCC901
+(MENU_ID   ASC);
+
+ALTER TABLE MCC901
+    ADD CONSTRAINT  PK_MCC901 PRIMARY KEY (MENU_ID);
+    
+COMMENT ON TABLE MCC901 IS '메뉴 정보' ;
+COMMENT ON COLUMN MCC901.MENU_ID            IS '메뉴 아이디' ;
+COMMENT ON COLUMN MCC901.MENU_NM            IS '메뉴 명' ;
+COMMENT ON COLUMN MCC901.PAGE_URL           IS '페이지 URL' ;
+COMMENT ON COLUMN MCC901.MENU_LVL           IS '메뉴 레벨' ;
+COMMENT ON COLUMN MCC901.SORT_ORD           IS '정렬순서' ;
+COMMENT ON COLUMN MCC901.UP_MENU_ID         IS '상위 메뉴 아이디' ;
+COMMENT ON COLUMN MCC901.USE_YN             IS '사용여부' ;
+COMMENT ON COLUMN MCC901.WRITE_DT           IS '등록일시' ;
+COMMENT ON COLUMN MCC901.WRITE_ID           IS '등록자' ;
+COMMENT ON COLUMN MCC901.UPDATE_DT          IS '수정일시' ;
+COMMENT ON COLUMN MCC901.UPDATE_ID          IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- 메뉴권한 정보
+---------------------------------------------------------------------------
+CREATE TABLE MCC902
+(
+    MENU_ID              VARCHAR(10) NOT NULL , 
+    LEVEL_CD             VARCHAR(30) NOT NULL ,
+    USE_YN               VARCHAR(1), 
+    WRITE_DT             TIMESTAMP NULL,
+    WRITE_ID             VARCHAR(30),
+    UPDATE_DT            TIMESTAMP NULL,
+    UPDATE_ID            VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MCC902 ON MCC902
+(MENU_ID   ASC, LEVEL_CD ASC);
+
+ALTER TABLE MCC902
+    ADD CONSTRAINT  PK_MCC902 PRIMARY KEY (MENU_ID,LEVEL_CD);
+    
+COMMENT ON TABLE MCC902 IS '메뉴 권한 정보' ;
+COMMENT ON COLUMN MCC902.MENU_ID            IS '메뉴 아이디' ;
+COMMENT ON COLUMN MCC902.LEVEL_CD           IS '메뉴 권한코드' ;
+COMMENT ON COLUMN MCC902.USE_YN             IS '사용여부' ;
+COMMENT ON COLUMN MCC902.WRITE_DT           IS '등록일시' ;
+COMMENT ON COLUMN MCC902.WRITE_ID           IS '등록자' ;
+COMMENT ON COLUMN MCC902.UPDATE_DT          IS '수정일시' ;
+COMMENT ON COLUMN MCC902.UPDATE_ID          IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- 코드 
+---------------------------------------------------------------------------
+CREATE TABLE MCC001
+(
+    FACTORY_CD   VARCHAR(2) NOT NULL , 
+    BCODE        VARCHAR(30) NOT NULL , 
+    SCODE        VARCHAR(30) NOT NULL , 
+    CODE_NM      VARCHAR(200), 
+    SORT_ORDER   INTEGER NULL ,
+    BIGO         VARCHAR(200), 
+    USE_YN       VARCHAR(1), 
+    WRITE_DT     TIMESTAMP,
+    WRITE_ID     VARCHAR(30),
+    UPDATE_DT    TIMESTAMP,
+    UPDATE_ID    VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MCC001 ON MCC001
+(FACTORY_CD ASC,BCODE ASC,SCODE ASC);
+
+ALTER TABLE MCC001
+    ADD CONSTRAINT PK_MCC001 PRIMARY KEY (FACTORY_CD ,BCODE,SCODE);
+    
+COMMENT ON TABLE MCC001                  IS '코드 정보' ;
+COMMENT ON COLUMN MCC001.FACTORY_CD      IS '공장코드' ;
+COMMENT ON COLUMN MCC001.BCODE           IS '대분류코드' ;
+COMMENT ON COLUMN MCC001.SCODE           IS '소분류코드' ;
+COMMENT ON COLUMN MCC001.CODE_NM         IS '코드명' ;
+COMMENT ON COLUMN MCC001.SORT_ORDER      IS '코드순서' ;
+COMMENT ON COLUMN MCC001.BIGO            IS '비고' ;
+COMMENT ON COLUMN MCC001.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MCC001.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MCC001.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MCC001.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MCC001.UPDATE_ID       IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- 거래처
+---------------------------------------------------------------------------
+CREATE TABLE MCC025
+(
+    FACTORY_CD   VARCHAR(2) NOT NULL , 
+    CUST_CD      VARCHAR(30) NOT NULL , 
+    CUST_NM      VARCHAR(100), 
+    CUST_TYPE_CD VARCHAR(30), 
+    MAT_TYPE_CD  VARCHAR(30), 
+    ADDR1        VARCHAR(200), 
+    ADDR2        VARCHAR(200), 
+    POST_CD      VARCHAR(10), 
+    TEL_NO       VARCHAR(100), 
+    FAX_NO       VARCHAR(100), 
+    PRESIDEN_NM  VARCHAR(20), 
+    PERSON_NM    VARCHAR(100), 
+    PERSON_TEL   VARCHAR(100), 
+    PERSON_EMAIL VARCHAR(200), 
+    BUSINESS_NO  VARCHAR(20), 
+    BIGO         VARCHAR(200),
+    USE_YN       VARCHAR(1), 
+    WRITE_DT     TIMESTAMP,
+    WRITE_ID     VARCHAR(30),
+    UPDATE_DT    TIMESTAMP,
+    UPDATE_ID    VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MCC025 ON MCC025
+(FACTORY_CD ASC,CUST_CD ASC);
+
+ALTER TABLE MCC025
+    ADD CONSTRAINT PK_MCC025 PRIMARY KEY (FACTORY_CD,CUST_CD);
+    
+COMMENT ON TABLE MCC025                  IS '거래처 정보' ;
+COMMENT ON COLUMN MCC025.FACTORY_CD      IS '공장코드' ;
+COMMENT ON COLUMN MCC025.CUST_CD         IS '거래처코드' ;
+COMMENT ON COLUMN MCC025.CUST_NM         IS '거래처명' ;
+COMMENT ON COLUMN MCC025.CUST_TYPE_CD    IS '업체구분코드(자재처:MAT,고객사:COD,외주처:OUT)';
+COMMENT ON COLUMN MCC025.MAT_TYPE_CD     IS '자재구분코드(원자재:MT,부자재:BT)' ;
+COMMENT ON COLUMN MCC025.ADDR1           IS '주소' ;
+COMMENT ON COLUMN MCC025.ADDR2           IS '상세주소' ;
+COMMENT ON COLUMN MCC025.POST_CD         IS '우편번호' ;
+COMMENT ON COLUMN MCC025.TEL_NO          IS '전화번호' ;
+COMMENT ON COLUMN MCC025.FAX_NO          IS '팩스번호' ;
+COMMENT ON COLUMN MCC025.PRESIDEN_NM     IS '대표자명' ;
+COMMENT ON COLUMN MCC025.PERSON_NM       IS '담당자명' ;
+COMMENT ON COLUMN MCC025.PERSON_TEL      IS '담당자 전화번호' ;
+COMMENT ON COLUMN MCC025.PERSON_EMAIL    IS '담당자 EMAIL' ;
+COMMENT ON COLUMN MCC025.BUSINESS_NO     IS '사업자번호' ;
+COMMENT ON COLUMN MCC025.BIGO            IS '비고' ;
+COMMENT ON COLUMN MCC025.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MCC025.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MCC025.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MCC025.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MCC025.UPDATE_ID       IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- 부서정보
+---------------------------------------------------------------------------
+CREATE TABLE MCC005
+(
+    FACTORY_CD   VARCHAR(2) NOT NULL , 
+    DEPART_CD    VARCHAR(30) NOT NULL , 
+    DEPART_NM    VARCHAR(200), 
+    USE_YN       VARCHAR(1), 
+    WRITE_DT     TIMESTAMP,
+    WRITE_ID     VARCHAR(30),
+    UPDATE_DT    TIMESTAMP,
+    UPDATE_ID    VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MCC005 ON MCC005
+(FACTORY_CD ASC,DEPART_CD ASC);
+
+ALTER TABLE MCC005
+    ADD CONSTRAINT PK_MCC005 PRIMARY KEY (FACTORY_CD,DEPART_CD);
+
+COMMENT ON TABLE MCC005                  IS '부서 정보' ;
+COMMENT ON COLUMN MCC005.FACTORY_CD      IS '공장코드' ;
+COMMENT ON COLUMN MCC005.DEPART_CD       IS '부서코드' ;
+COMMENT ON COLUMN MCC005.DEPART_NM       IS '부서명' ;
+COMMENT ON COLUMN MCC005.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MCC005.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MCC005.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MCC005.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MCC005.UPDATE_ID       IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- 자재 정보 (신규:확인)
+---------------------------------------------------------------------------
+CREATE TABLE MCC010
+(
+    FACTORY_CD     VARCHAR(2) NOT NULL , 
+    MAT_CD         VARCHAR(30) NOT NULL , 
+    MAT_NM         VARCHAR(200),
+    MAT_CUST_CD    VARCHAR(30),
+    BIGO           VARCHAR(200),
+    USE_YN         VARCHAR(1), 
+    WRITE_DT       TIMESTAMP,
+    WRITE_ID       VARCHAR(30),
+    UPDATE_DT      TIMESTAMP,
+    UPDATE_ID      VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MCC010 ON MCC010
+(FACTORY_CD ASC,MAT_CD ASC);
+
+CREATE UNIQUE INDEX IX01_MCC010 ON MCC010
+(MAT_NM ASC);
+
+ALTER TABLE MCC010
+    ADD CONSTRAINT PK_MCC010 PRIMARY KEY (FACTORY_CD,MAT_CD);
+
+COMMENT ON TABLE MCC010                  IS '자재 정보' ;
+COMMENT ON COLUMN MCC010.FACTORY_CD      IS '공장코드' ;
+COMMENT ON COLUMN MCC010.MAT_CD          IS '자재코드' ;
+COMMENT ON COLUMN MCC010.MAT_NM          IS '자재명' ;
+COMMENT ON COLUMN MCC010.MAT_CUST_CD     IS '자재처' ;
+COMMENT ON COLUMN MCC010.BIGO            IS '비고' ;
+COMMENT ON COLUMN MCC010.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MCC010.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MCC010.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MCC010.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MCC010.UPDATE_ID       IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- 제품정보 (변경:확인) : MCC015 >> MCC016
+---------------------------------------------------------------------------
+CREATE TABLE MCC016
+(
+    FACTORY_CD            VARCHAR(2) NOT NULL , 
+    ITEM_CD                VARCHAR(30) NOT NULL ,
+    ITEM_NM                VARCHAR(200),
+    BOM_VER             VARCHAR(20),
+    BIGO                VARCHAR(200),
+    USE_YN                VARCHAR(1), 
+    WRITE_DT            TIMESTAMP,
+    WRITE_ID            VARCHAR(30),
+    UPDATE_DT            TIMESTAMP,
+    UPDATE_ID            VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MCC016 ON MCC016
+(FACTORY_CD ASC,ITEM_CD ASC);
+
+ALTER TABLE MCC016
+    ADD CONSTRAINT PK_MCC016 PRIMARY KEY (FACTORY_CD,ITEM_CD);
+
+COMMENT ON TABLE MCC016                  IS '제품 정보' ;
+COMMENT ON COLUMN MCC016.FACTORY_CD      IS '공장코드' ;
+COMMENT ON COLUMN MCC016.ITEM_CD         IS '제품코드' ;
+COMMENT ON COLUMN MCC016.ITEM_NM         IS '제품명' ;
+COMMENT ON COLUMN MCC016.BOM_VER         IS '외부키:BOM' ;
+COMMENT ON COLUMN MCC016.BIGO            IS '비고' ;
+COMMENT ON COLUMN MCC016.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MCC016.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MCC016.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MCC016.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MCC016.UPDATE_ID       IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- 박스정보 포장정보
+---------------------------------------------------------------------------
+CREATE TABLE MCC017
+(
+    FACTORY_CD   VARCHAR(2) NOT NULL , 
+    BOX_CD       VARCHAR(30) NOT NULL , 
+    BOX_NM       VARCHAR(200), 
+    BWITH_NUM    INTEGER NULL ,
+    BHEIGHT_NUM  INTEGER NULL ,
+    BIN_COUNT    INTEGER NULL ,
+    USE_YN       VARCHAR(1), 
+    WRITE_DT     TIMESTAMP,
+    WRITE_ID     VARCHAR(30),
+    UPDATE_DT    TIMESTAMP,
+    UPDATE_ID    VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MCC017 ON MCC017
+(FACTORY_CD ASC,BOX_CD ASC);
+
+ALTER TABLE MCC017
+    ADD CONSTRAINT PK_MCC017 PRIMARY KEY (FACTORY_CD,BOX_CD);
+
+COMMENT ON TABLE MCC017                  IS '박스 정보' ;
+COMMENT ON COLUMN MCC017.FACTORY_CD      IS '공장코드' ;
+COMMENT ON COLUMN MCC017.BOX_CD          IS '박스코드' ;
+COMMENT ON COLUMN MCC017.BOX_NM          IS '박스명' ;
+COMMENT ON COLUMN MCC017.BWITH_NUM       IS '가로사이즈' ;
+COMMENT ON COLUMN MCC017.BHEIGHT_NUM     IS '세로사이즈' ;
+COMMENT ON COLUMN MCC017.BIN_COUNT       IS '박스투입수량' ;
+COMMENT ON COLUMN MCC017.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MCC017.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MCC017.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MCC017.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MCC017.UPDATE_ID       IS '수정자' ;
+
+
+
+
+---------------------------------------------------------------------------
+-- 작업자 정보
+---------------------------------------------------------------------------
+CREATE TABLE MCC019
+(
+    FACTORY_CD   VARCHAR(2) NOT NULL , 
+    LOGIN_ID     VARCHAR(30) NOT NULL, 
+    LOGIN_NAME   VARCHAR(30), 
+    SABUN_ID     VARCHAR(30),   
+    SHORT_ID     VARCHAR(3),
+    PASS_CD      VARCHAR(255), 
+    DEPART_CD    VARCHAR(30), 
+    JIK_CD       VARCHAR(30), 
+    JIKCHAEK_CD  VARCHAR(30), 
+    EMAIL        VARCHAR(200), 
+    MOBILE_NO    VARCHAR(30), 
+    WORK_CD      VARCHAR(30), 
+    LEVEL_CD     VARCHAR(30),
+    IPDA_DT      VARCHAR(20),    
+    LAST_CON_DT  TIMESTAMP,
+    USE_YN       VARCHAR(1), 
+    WRITE_DT     TIMESTAMP,
+    WRITE_ID     VARCHAR(30),
+    UPDATE_DT    TIMESTAMP,
+    UPDATE_ID    VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MCC019 ON MCC019
+(FACTORY_CD ASC,LOGIN_ID ASC);
+
+ALTER TABLE MCC019
+    ADD CONSTRAINT PK_MCC019 PRIMARY KEY (FACTORY_CD,LOGIN_ID);
+
+CREATE UNIQUE INDEX X01_MCC019 ON MCC019
+(FACTORY_CD ASC,SHORT_ID ASC);
+
+COMMENT ON TABLE MCC019                  IS '작업자 정보' ;
+COMMENT ON COLUMN MCC019.FACTORY_CD      IS '공장코드' ;
+COMMENT ON COLUMN MCC019.SABUN_ID        IS '사번' ;
+COMMENT ON COLUMN MCC019.LOGIN_ID        IS '로그인 아이디' ;
+COMMENT ON COLUMN MCC019.LOGIN_NAME      IS '로그인 성명' ;
+COMMENT ON COLUMN MCC019.SHORT_ID        IS '숏 아이디' ;
+COMMENT ON COLUMN MCC019.PASS_CD         IS '패스워드' ;
+COMMENT ON COLUMN MCC019.DEPART_CD       IS '외부키:부서코드' ;
+COMMENT ON COLUMN MCC019.JIK_CD          IS '직급' ;
+COMMENT ON COLUMN MCC019.JIKCHAEK_CD     IS '직책' ;
+COMMENT ON COLUMN MCC019.EMAIL           IS '이메일' ;
+COMMENT ON COLUMN MCC019.MOBILE_NO       IS '전화번호' ;
+COMMENT ON COLUMN MCC019.WORK_CD         IS '외부키:작업조 코드' ;
+COMMENT ON COLUMN MCC019.LEVEL_CD        IS '권한등급' ;
+COMMENT ON COLUMN MCC019.IPDA_DT         IS '입사일자' ;
+COMMENT ON COLUMN MCC019.LAST_CON_DT     IS '최종접속일자' ;
+COMMENT ON COLUMN MCC019.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MCC019.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MCC019.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MCC019.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MCC019.UPDATE_ID       IS '수정자' ;
+
+
+
+---------------------------------------------------------------------------
+-- 작업조 관리
+---------------------------------------------------------------------------
+CREATE TABLE MCC023
+(
+    FACTORY_CD   VARCHAR(2) NOT NULL , 
+    WORK_CD      VARCHAR(30) NOT NULL , 
+    WORK_NM      VARCHAR(200), 
+    START_WRTM   VARCHAR(15), 
+    END_WRTM     VARCHAR(15), 
+    FOOD_WRTM    VARCHAR(15), 
+    IDLE_WRTM    VARCHAR(15), 
+    CHANGE_WRTM  VARCHAR(15), 
+    USE_YN       VARCHAR(1), 
+    WRITE_DT     TIMESTAMP,
+    WRITE_ID     VARCHAR(30),
+    UPDATE_DT    TIMESTAMP,
+    UPDATE_ID    VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MCC023 ON MCC023
+(FACTORY_CD ASC,WORK_CD ASC);
+
+ALTER TABLE MCC023
+    ADD CONSTRAINT PK_MCC023 PRIMARY KEY (FACTORY_CD,WORK_CD);
+
+COMMENT ON TABLE MCC023                  IS '작업조 정보' ;
+COMMENT ON COLUMN MCC023.FACTORY_CD      IS '공장코드' ;
+COMMENT ON COLUMN MCC023.WORK_CD         IS '작업조 코드' ;
+COMMENT ON COLUMN MCC023.WORK_NM         IS '작업조명' ;
+COMMENT ON COLUMN MCC023.START_WRTM      IS '근무시작시간' ;
+COMMENT ON COLUMN MCC023.END_WRTM        IS '근무종료시간' ;
+COMMENT ON COLUMN MCC023.FOOD_WRTM       IS '식사시간' ;
+COMMENT ON COLUMN MCC023.IDLE_WRTM       IS '휴식시간' ;
+COMMENT ON COLUMN MCC023.CHANGE_WRTM     IS '교대시간' ;
+COMMENT ON COLUMN MCC023.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MCC023.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MCC023.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MCC023.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MCC023.UPDATE_ID       IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- 달력정보
+---------------------------------------------------------------------------
+CREATE TABLE MCC009
+(
+    FACTORY_CD   VARCHAR(2) NOT NULL , 
+    YYYMMDD      VARCHAR(8) NOT NULL , 
+    DAY_NM       VARCHAR(20),
+    YWEEK_CD     VARCHAR(2),
+    MWEEK_CD     VARCHAR(2),
+    WORK_YN      VARCHAR(1),
+    BIGO         VARCHAR(200), 
+    USE_YN       VARCHAR(1), 
+    WRITE_DT     TIMESTAMP,
+    WRITE_ID     VARCHAR(30),
+    UPDATE_DT    TIMESTAMP,
+    UPDATE_ID    VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MCC009 ON MCC009
+(FACTORY_CD ASC,YYYMMDD ASC);
+
+ALTER TABLE MCC009
+    ADD CONSTRAINT PK_MCC009 PRIMARY KEY (FACTORY_CD,YYYMMDD);
+
+COMMENT ON TABLE MCC009                  IS '달력 정보' ;
+COMMENT ON COLUMN MCC009.FACTORY_CD      IS '공장코드' ;
+COMMENT ON COLUMN MCC009.YYYMMDD         IS '일자' ;
+COMMENT ON COLUMN MCC009.DAY_NM          IS '요일한글' ;
+COMMENT ON COLUMN MCC009.YWEEK_CD        IS '연주차정보' ;
+COMMENT ON COLUMN MCC009.MWEEK_CD        IS '월주차정보' ;
+COMMENT ON COLUMN MCC009.WORK_YN         IS '근무여부' ;
+COMMENT ON COLUMN MCC009.BIGO            IS '비고' ;
+COMMENT ON COLUMN MCC009.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MCC009.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MCC009.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MCC009.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MCC009.UPDATE_ID       IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- 창고관리
+---------------------------------------------------------------------------
+CREATE TABLE MCC042
+(
+    FACTORY_CD     VARCHAR(2) NOT NULL , 
+    WORKSHOP_CD    VARCHAR(30) NOT NULL , 
+    WORKSHOP_NM    VARCHAR(200), 
+    AREA_CD        VARCHAR(30), 
+    BIGO           VARCHAR(200), 
+    USE_YN         VARCHAR(1), 
+    WRITE_DT       TIMESTAMP,
+    WRITE_ID       VARCHAR(30),
+    UPDATE_DT      TIMESTAMP,
+    UPDATE_ID      VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MCC042 ON MCC042
+(FACTORY_CD ASC,WORKSHOP_CD ASC);
+
+ALTER TABLE MCC042
+    ADD CONSTRAINT PK_MCC042 PRIMARY KEY (FACTORY_CD,WORKSHOP_CD);
+
+COMMENT ON TABLE MCC042                  IS '부서 정보' ;
+COMMENT ON COLUMN MCC042.FACTORY_CD      IS '공장코드' ;
+COMMENT ON COLUMN MCC042.WORKSHOP_CD     IS '창고코드' ;
+COMMENT ON COLUMN MCC042.WORKSHOP_NM     IS '창고명' ;
+COMMENT ON COLUMN MCC042.AREA_CD         IS '구역코드,' ;
+COMMENT ON COLUMN MCC042.BIGO            IS '비고' ;
+COMMENT ON COLUMN MCC042.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MCC042.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MCC042.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MCC042.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MCC042.UPDATE_ID       IS '수정자' ;
+
+---------------------------------------------------------------------------
+-- 입고 (변경:확인중:외주자재거래 외부키만 추가 필요)
+---------------------------------------------------------------------------
+CREATE TABLE MMA022
+(
+    FACTORY_CD        VARCHAR(2) NOT NULL ,
+    MATIN_SEQ        VARCHAR(20) NOT NULL ,
+    IN_DT            VARCHAR(8),
+    MAT_IN_TYPE_CD    VARCHAR(30),
+    WORKSHOP_CD        VARCHAR(30),
+    CUST_CD         VARCHAR(30),
+    MAT_CD            VARCHAR(30),
+    IN_CNT            NUMERIC(10,2),
+    IN_BAD_CNT        NUMERIC(10,2),
+    LOTID            VARCHAR(20),
+    BIGO             VARCHAR(1000), 
+    USE_YN            VARCHAR(1),
+    WRITE_DT        TIMESTAMP,
+    WRITE_ID        VARCHAR(30),
+    UPDATE_DT        TIMESTAMP,
+    UPDATE_ID        VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MMA022 ON MMA022
+(FACTORY_CD ASC,MATIN_SEQ ASC);
+
+ALTER TABLE MMA022
+    ADD CONSTRAINT PK_MMA022 PRIMARY KEY (FACTORY_CD,MATIN_SEQ);
+
+COMMENT ON TABLE MMA022                 IS '입고정보' ;
+COMMENT ON COLUMN MMA022.FACTORY_CD     IS '공장코드' ;
+COMMENT ON COLUMN MMA022.MATIN_SEQ      IS '입고순번' ;
+COMMENT ON COLUMN MMA022.IN_DT          IS '입고일자' ;
+COMMENT ON COLUMN MMA022.MAT_IN_TYPE_CD    IS '입고구분 (MIN:입고,MRNT:반품입고) 미사용:무조건:MIN' ;
+COMMENT ON COLUMN MMA022.WORKSHOP_CD    IS '창고코드' ;
+COMMENT ON COLUMN MMA022.CUST_CD        IS '자재처' ;
+COMMENT ON COLUMN MMA022.MAT_CD         IS '자재코드' ;
+COMMENT ON COLUMN MMA022.IN_CNT            IS '입고수량(실입고 수량):화면의 입고수량은 계산해서 출력' ;
+COMMENT ON COLUMN MMA022.IN_BAD_CNT        IS '입고불량수량' ;
+COMMENT ON COLUMN MMA022.LOTID          IS '입고LOT번호' ;
+COMMENT ON COLUMN MMA022.BIGO           IS '비고' ;
+COMMENT ON COLUMN MMA022.USE_YN         IS '사용여부' ;
+COMMENT ON COLUMN MMA022.WRITE_DT       IS '등록일시' ;
+COMMENT ON COLUMN MMA022.WRITE_ID       IS '등록자' ;
+COMMENT ON COLUMN MMA022.UPDATE_DT      IS '수정일시' ;
+COMMENT ON COLUMN MMA022.UPDATE_ID      IS '수정자' ;
+
+---------------------------------------------------------------------------
+-- 출고
+---------------------------------------------------------------------------
+CREATE TABLE MMA024
+(
+    FACTORY_CD        VARCHAR(2) NOT NULL , 
+    MATOUT_SEQ        VARCHAR(20) NOT NULL , 
+    WORKSHOP_CD        VARCHAR(30), 
+    PROD_SEQ        VARCHAR(20), 
+    MAT_OUT_TYPE_CD VARCHAR(30), 
+    OUT_DT            VARCHAR(8), 
+    MAT_CD            VARCHAR(30), 
+    OUT_CNT            NUMERIC(10,2),
+    LOTID            VARCHAR(20),
+    USE_YN           VARCHAR(1), 
+    WRITE_DT         TIMESTAMP,
+    WRITE_ID         VARCHAR(30),
+    UPDATE_DT        TIMESTAMP,
+    UPDATE_ID        VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MMA024 ON MMA024
+(FACTORY_CD ASC,MATOUT_SEQ ASC);
+
+ALTER TABLE MMA024
+    ADD CONSTRAINT PK_MMA024 PRIMARY KEY (FACTORY_CD,MATOUT_SEQ);
+
+COMMENT ON TABLE MMA024                  IS '부서 정보' ;
+COMMENT ON COLUMN MMA024.FACTORY_CD      IS '공장코드' ;
+COMMENT ON COLUMN MMA024.MATOUT_SEQ      IS '원부자재출고순번' ;
+COMMENT ON COLUMN MMA024.WORKSHOP_CD     IS '창고코드' ;
+COMMENT ON COLUMN MMA024.PROD_SEQ        IS '생산지시 순번(생산실적 확정 투입시 변경됨)' ;
+COMMENT ON COLUMN MMA024.MAT_OUT_TYPE_CD IS '출고구분(공정출고(GOUT),공정반환(GRNT),폐기(DISUSE),재고조정(MODIFY))' ;
+COMMENT ON COLUMN MMA024.OUT_DT          IS '출고일자' ;
+COMMENT ON COLUMN MMA024.MAT_CD          IS '자재코드' ;
+COMMENT ON COLUMN MMA024.OUT_CNT          IS '출고수량' ;
+COMMENT ON COLUMN MMA024.LOTID           IS '입고LOT번호' ;
+COMMENT ON COLUMN MMA024.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MMA024.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MMA024.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MMA024.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MMA024.UPDATE_ID       IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- 자재 마감
+---------------------------------------------------------------------------
+CREATE TABLE MWP005
+(
+    FACTORY_CD      VARCHAR(2) NOT NULL,
+    MENDYN_SEQ      VARCHAR(20) NOT NULL,
+    MAT_CD          VARCHAR(20) NOT NULL,
+    MAGAM_YYYYMM    VARCHAR(6),
+    MAGAM_YMD       VARCHAR(8),
+    MAGAM_YN        VARCHAR(1),
+    WORKSHOP_CD     VARCHAR(30),
+    AREA_CD         VARCHAR(30),
+    MCONTROL_DT     VARCHAR(14),
+    MCONTROL_ID     VARCHAR(30),
+    DEADLINE_ST_DT  VARCHAR(14),
+    DEADLINE_ED_DT  VARCHAR(14),
+    DEADLINE_QTY    NUMERIC(14,2),
+    USE_YN          VARCHAR(1),
+    WRITE_DT        TIMESTAMP,
+    WRITE_ID        VARCHAR(30),
+    UPDATE_DT       TIMESTAMP,
+    UPDATE_ID       VARCHAR(30)
+)
+;
+
+CREATE UNIQUE INDEX XPK_MWP005 ON MWP005
+(FACTORY_CD ASC,MENDYN_SEQ ASC,MAT_CD ASC);
+
+ALTER TABLE MWP005
+    ADD CONSTRAINT PK_MWP005 PRIMARY KEY (FACTORY_CD,MENDYN_SEQ,MAT_CD);
+
+COMMENT ON TABLE MWP005                  IS '재고 마감' ;
+COMMENT ON COLUMN MWP005.FACTORY_CD      IS '법인코드' ;
+COMMENT ON COLUMN MWP005.MENDYN_SEQ      IS '재고순번' ;
+COMMENT ON COLUMN MWP005.MAT_CD          IS '자재 코드';
+COMMENT ON COLUMN MWP005.MAGAM_YYYYMM    IS '마감년월' ;
+COMMENT ON COLUMN MWP005.MAGAM_YMD       IS '마감일' ;
+COMMENT ON COLUMN MWP005.MAGAM_YN        IS '마감여부' ;
+COMMENT ON COLUMN MWP005.WORKSHOP_CD     IS '창고코드' ;
+COMMENT ON COLUMN MWP005.AREA_CD         IS '구역코드' ;
+COMMENT ON COLUMN MWP005.DEADLINE_ST_DT  IS '마감 시작일시';
+COMMENT ON COLUMN MWP005.DEADLINE_ED_DT  IS '마감 종료일시';
+COMMENT ON COLUMN MWP005.DEADLINE_QTY    IS '마감 수량';
+COMMENT ON COLUMN MWP005.MCONTROL_DT     IS '마감 처리 일자' ;
+COMMENT ON COLUMN MWP005.MCONTROL_ID     IS '마감자' ;
+COMMENT ON COLUMN MWP005.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MWP005.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MWP005.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MWP005.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MWP005.UPDATE_ID       IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- 공정정보 (변경없음:확인)
+---------------------------------------------------------------------------
+CREATE TABLE MCC030
+(
+    FACTORY_CD   VARCHAR(2) NOT NULL , 
+    OPER_SEQ     VARCHAR(20) NOT NULL , 
+    OPER_CD      VARCHAR(30), 
+    OPER_NM      VARCHAR(100), 
+    OPER_RNM     VARCHAR(200), 
+    OUTCUST_YN   VARCHAR(1), 
+    CUST_CD      VARCHAR(30), 
+    MOLD_CD      VARCHAR(30), 
+    MOLD_SEQ     VARCHAR(20), 
+    EQUIP_CD     VARCHAR(30),
+    EQUIP_SEQ    VARCHAR(20), 
+    OPER_CHK_YN  VARCHAR(1), 
+    BIGO         VARCHAR(200), 
+    USE_YN       VARCHAR(1), 
+    WRITE_DT     TIMESTAMP,
+    WRITE_ID     VARCHAR(30),
+    UPDATE_DT    TIMESTAMP,
+    UPDATE_ID    VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MCC030 ON MCC030
+(FACTORY_CD ASC,OPER_SEQ ASC);
+
+ALTER TABLE MCC030
+    ADD CONSTRAINT PK_MCC030 PRIMARY KEY (FACTORY_CD,OPER_SEQ);
+
+COMMENT ON TABLE MCC030                  IS '공정정보' ;
+COMMENT ON COLUMN MCC030.FACTORY_CD      IS '공장코드' ;
+COMMENT ON COLUMN MCC030.OPER_SEQ        IS '순번' ;
+COMMENT ON COLUMN MCC030.OPER_CD         IS '공정코드' ;
+COMMENT ON COLUMN MCC030.OPER_NM         IS '공정명' ;
+COMMENT ON COLUMN MCC030.OPER_RNM        IS '공정설명' ;
+COMMENT ON COLUMN MCC030.OUTCUST_YN      IS '외주여부' ;
+COMMENT ON COLUMN MCC030.CUST_CD         IS '외주거래처코드' ;
+COMMENT ON COLUMN MCC030.MOLD_CD         IS '금형코드(미사용)' ;
+COMMENT ON COLUMN MCC030.MOLD_SEQ        IS '금형코드순번(미사용)' ;
+COMMENT ON COLUMN MCC030.EQUIP_CD        IS '설비코드(미사용)' ;
+COMMENT ON COLUMN MCC030.EQUIP_SEQ       IS '설비코드순번(미사용)' ;
+COMMENT ON COLUMN MCC030.OPER_CHK_YN     IS '초중종몰검사여부(미사용)' ;
+COMMENT ON COLUMN MCC030.BIGO            IS '비고' ;
+COMMENT ON COLUMN MCC030.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MCC030.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MCC030.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MCC030.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MCC030.UPDATE_ID       IS '수정자' ;
+
+
+
+---------------------------------------------------------------------------
+-- BOM정보 (변경:확인)
+---------------------------------------------------------------------------
+CREATE TABLE MCC020
+(
+    FACTORY_CD     VARCHAR(2) NOT NULL , 
+    BOM_SEQ        VARCHAR(20) NOT NULL , 
+    BOM_VER        VARCHAR(20), 
+    BOM_STDT       VARCHAR(8),
+    OPER_CD        VARCHAR(30), 
+    OPER_SEQ       VARCHAR(20), 
+    OPER_UPCD      VARCHAR(30), 
+    OPER_UPCD_SEQ  VARCHAR(20), 
+    OPER_TOPCD     VARCHAR(30), 
+    OPER_TOPCD_SEQ VARCHAR(20),     
+    BOM_LEVEL      INTEGER, 
+    BOM_TYPE_CD    VARCHAR(30),     
+    ITEM_CD        VARCHAR(30), 
+    MAT_CD         VARCHAR(30),
+    DEMAND_QTY     NUMERIC(12,4), 
+    CONFIRM_YN     VARCHAR(1), 
+    USE_YN         VARCHAR(1), 
+    WRITE_DT       TIMESTAMP,
+    WRITE_ID       VARCHAR(30),
+    UPDATE_DT      TIMESTAMP,
+    UPDATE_ID      VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MCC020 ON MCC020
+(FACTORY_CD ASC,BOM_SEQ ASC);
+
+ALTER TABLE MCC020
+    ADD CONSTRAINT PK_MCC020 PRIMARY KEY (FACTORY_CD,BOM_SEQ);
+
+COMMENT ON TABLE MCC020                  IS 'BOM정보' ;
+COMMENT ON COLUMN MCC020.FACTORY_CD      IS '공장코드' ;
+COMMENT ON COLUMN MCC020.BOM_SEQ         IS '순번' ;
+COMMENT ON COLUMN MCC020.BOM_VER         IS 'BOM버젼' ;
+COMMENT ON COLUMN MCC020.BOM_STDT        IS 'BOM시작일자' ;
+COMMENT ON COLUMN MCC020.OPER_CD         IS '공정코드' ;
+COMMENT ON COLUMN MCC020.OPER_SEQ        IS '공정코드순번' ;
+COMMENT ON COLUMN MCC020.OPER_UPCD       IS '상위공정코드' ;
+COMMENT ON COLUMN MCC020.OPER_UPCD_SEQ   IS '상위공정코드순번' ;
+COMMENT ON COLUMN MCC020.OPER_TOPCD      IS '최상위공정코드' ;
+COMMENT ON COLUMN MCC020.OPER_TOPCD_SEQ  IS '최상위공정코드순번' ;
+COMMENT ON COLUMN MCC020.BOM_LEVEL       IS '레벨' ;
+COMMENT ON COLUMN MCC020.BOM_TYPE_CD     IS 'IT:제품,OP:공정,MT:자재' ;
+COMMENT ON COLUMN MCC020.ITEM_CD         IS '제품코드' ;
+COMMENT ON COLUMN MCC020.MAT_CD          IS '자재코드(미사용)' ;
+COMMENT ON COLUMN MCC020.DEMAND_QTY      IS '소요량(미사용)' ;
+COMMENT ON COLUMN MCC020.CONFIRM_YN      IS '확정여부' ;
+COMMENT ON COLUMN MCC020.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MCC020.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MCC020.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MCC020.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MCC020.UPDATE_ID       IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- BOM정보 HISTORY
+---------------------------------------------------------------------------
+CREATE TABLE MCC021
+(
+    FACTORY_CD     VARCHAR(2) NOT NULL , 
+    ITEM_CD        VARCHAR(30) NOT NULL, 
+    BOM_HIS_SEQ    VARCHAR(20) NOT NULL , 
+    BOM_VER        VARCHAR(20), 
+    BOM_STDT       VARCHAR(8),     
+    OPER_SEQ       VARCHAR(20), 
+    BOM_BIGO       VARCHAR(200), 
+    USE_YN         VARCHAR(1), 
+    WRITE_DT       TIMESTAMP,
+    WRITE_ID       VARCHAR(30),
+    UPDATE_DT      TIMESTAMP,
+    UPDATE_ID      VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MCC021 ON MCC021
+(FACTORY_CD ASC, ITEM_CD ASC, BOM_HIS_SEQ ASC);
+
+ALTER TABLE MCC021
+    ADD CONSTRAINT PK_MCC021 PRIMARY KEY (FACTORY_CD,ITEM_CD,BOM_HIS_SEQ);
+
+COMMENT ON TABLE MCC021                  IS 'BOM정보' ;
+COMMENT ON COLUMN MCC021.FACTORY_CD      IS '공장코드' ;
+COMMENT ON COLUMN MCC021.ITEM_CD         IS '품목코드' ;
+COMMENT ON COLUMN MCC021.BOM_HIS_SEQ     IS 'HISTORY 순번' ;
+COMMENT ON COLUMN MCC021.BOM_VER         IS 'BOM버젼' ;
+COMMENT ON COLUMN MCC021.BOM_STDT        IS 'BOM시작일자' ;
+COMMENT ON COLUMN MCC021.OPER_SEQ        IS '공정 SEQ' ;
+COMMENT ON COLUMN MCC021.BOM_BIGO        IS 'BOM 비고' ;
+COMMENT ON COLUMN MCC021.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MCC021.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MCC021.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MCC021.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MCC021.UPDATE_ID       IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- BOM정보 backup
+---------------------------------------------------------------------------
+CREATE TABLE MCC022
+(
+    BOM_HIS_SEQ    VARCHAR(20) NOT NULL , 
+    FACTORY_CD     VARCHAR(2) NOT NULL , 
+    BOM_SEQ        VARCHAR(20) NOT NULL , 
+    BOM_VER        VARCHAR(20), 
+    BOM_STDT       VARCHAR(8), 
+    OPER_CD        VARCHAR(30), 
+    OPER_SEQ       VARCHAR(20), 
+    OPER_UPCD      VARCHAR(30), 
+    OPER_UPCD_SEQ  VARCHAR(20), 
+    OPER_TOPCD     VARCHAR(30), 
+    OPER_TOPCD_SEQ VARCHAR(20),     
+    BOM_LEVEL      INTEGER, 
+    BOM_TYPE_CD    VARCHAR(30),     
+    ITEM_CD        VARCHAR(30), 
+    MAT_CD         VARCHAR(30),
+    DEMAND_QTY     NUMERIC(12,4), 
+    CONFIRM_YN     VARCHAR(1), 
+    USE_YN         VARCHAR(1), 
+    WRITE_DT       TIMESTAMP,
+    WRITE_ID       VARCHAR(30),
+    UPDATE_DT      TIMESTAMP,
+    UPDATE_ID      VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MCC022 ON MCC022
+(BOM_HIS_SEQ ASC, FACTORY_CD ASC,BOM_SEQ ASC);
+
+ALTER TABLE MCC022
+    ADD CONSTRAINT PK_MCC022 PRIMARY KEY (BOM_HIS_SEQ, FACTORY_CD,BOM_SEQ);
+
+COMMENT ON TABLE MCC022                  IS 'BOM정보 BACKUP' ;
+COMMENT ON COLUMN MCC022.BOM_HIS_SEQ     IS 'HISTORY 순번' ;
+COMMENT ON COLUMN MCC022.FACTORY_CD      IS '공장코드' ;
+COMMENT ON COLUMN MCC022.BOM_SEQ         IS '순번' ;
+COMMENT ON COLUMN MCC022.BOM_VER         IS 'BOM버젼' ;
+COMMENT ON COLUMN MCC022.BOM_STDT        IS 'BOM시작일자' ;
+COMMENT ON COLUMN MCC022.OPER_CD         IS '공정코드' ;
+COMMENT ON COLUMN MCC022.OPER_SEQ        IS '공정코드순번' ;
+COMMENT ON COLUMN MCC022.OPER_UPCD       IS '상위공정코드' ;
+COMMENT ON COLUMN MCC022.OPER_UPCD_SEQ   IS '상위공정코드순번' ;
+COMMENT ON COLUMN MCC022.OPER_TOPCD      IS '최상위공정코드' ;
+COMMENT ON COLUMN MCC022.OPER_TOPCD_SEQ  IS '최상위공정코드순번' ;
+COMMENT ON COLUMN MCC022.BOM_LEVEL       IS '레벨' ;
+COMMENT ON COLUMN MCC022.BOM_TYPE_CD     IS 'IT:제품,HI:반제품,OP:공정,MT:자재,MI:금형,MA:설비,PH:가상반제품' ;
+COMMENT ON COLUMN MCC022.ITEM_CD         IS '품목코드' ;
+COMMENT ON COLUMN MCC022.MAT_CD          IS '자재코드' ;
+COMMENT ON COLUMN MCC022.DEMAND_QTY      IS '소요량' ;
+COMMENT ON COLUMN MCC022.CONFIRM_YN      IS '확정여부' ;
+COMMENT ON COLUMN MCC022.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MCC022.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MCC022.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MCC022.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MCC022.UPDATE_ID       IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- 설비 
+---------------------------------------------------------------------------
+CREATE TABLE MCC024
+(
+    FACTORY_CD    VARCHAR(2) NOT NULL , 
+    EQUIP_SEQ      VARCHAR(20) NOT NULL , 
+    EQUIP_CD       VARCHAR(20), 
+    EQUIP_NO       VARCHAR(30), 
+    EQUIP_NM       VARCHAR(50), 
+    EQUIP_PG       VARCHAR(50), 
+    EQUIP_MODEL_NO VARCHAR(30), 
+    EQUIP_CORP_NM  VARCHAR(30), 
+    EQUIP_GET_DT   VARCHAR(8), 
+    EQUIP_IP       VARCHAR(15), 
+    EQUIP_TYPE_CD  VARCHAR(30), 
+    USE_YN        VARCHAR(1), 
+    WRITE_DT      TIMESTAMP,
+    WRITE_ID      VARCHAR(30),
+    UPDATE_DT     TIMESTAMP,
+    UPDATE_ID     VARCHAR(30) 
+)
+;
+
+CREATE UNIQUE INDEX XPK_MCC024 ON MCC024
+(FACTORY_CD ASC,EQUIP_SEQ ASC);
+
+ALTER TABLE MCC024
+    ADD CONSTRAINT PK_MCC024 PRIMARY KEY (FACTORY_CD,EQUIP_SEQ);
+
+COMMENT ON TABLE MCC024 IS '설비' ;
+COMMENT ON COLUMN MCC024.FACTORY_CD     IS '공장코드' ;
+COMMENT ON COLUMN MCC024.EQUIP_SEQ      IS '설비순번' ;
+COMMENT ON COLUMN MCC024.EQUIP_CD       IS '설비코드' ;
+COMMENT ON COLUMN MCC024.EQUIP_NO       IS '장비번호' ;
+COMMENT ON COLUMN MCC024.EQUIP_NM       IS '설비명' ;
+COMMENT ON COLUMN MCC024.EQUIP_PG       IS '프로그램' ;
+COMMENT ON COLUMN MCC024.EQUIP_MODEL_NO IS '설비모델번호' ;
+COMMENT ON COLUMN MCC024.EQUIP_CORP_NM  IS '제조사' ;
+COMMENT ON COLUMN MCC024.EQUIP_GET_DT   IS '구입일자' ;
+COMMENT ON COLUMN MCC024.EQUIP_IP       IS '설비IP' ;
+COMMENT ON COLUMN MCC024.EQUIP_TYPE_CD  IS '설비 타입 코드(01:건조기,02:후열로:99:기타설비)' ;
+COMMENT ON COLUMN MCC024.USE_YN         IS '사용여부' ;
+COMMENT ON COLUMN MCC024.WRITE_DT       IS '등록일시' ;
+COMMENT ON COLUMN MCC024.WRITE_ID       IS '등록자' ;
+COMMENT ON COLUMN MCC024.UPDATE_DT      IS '수정일시' ;
+COMMENT ON COLUMN MCC024.UPDATE_ID      IS '수정자' ;
+
+---------------------------------------------------------------------------
+-- PLC 
+---------------------------------------------------------------------------
+CREATE TABLE MCC124
+(
+    FACTORY_CD    VARCHAR(2) NOT NULL , 
+    PLC_SEQ       VARCHAR(20) NOT NULL , 
+    EQUIP_CD      VARCHAR(20), 
+    PLC_CD        VARCHAR(20),
+    PLC_NM        VARCHAR(100),
+    PLC_TYPE_CD   VARCHAR(30), 
+    USE_YN        VARCHAR(1), 
+    WRITE_DT      TIMESTAMP,
+    WRITE_ID      VARCHAR(30),
+    UPDATE_DT     TIMESTAMP,
+    UPDATE_ID     VARCHAR(30) 
+)
+;
+
+CREATE UNIQUE INDEX XPK_MCC124 ON MCC124
+(FACTORY_CD ASC,PLC_SEQ ASC);
+
+ALTER TABLE MCC124
+    ADD CONSTRAINT PK_MCC124 PRIMARY KEY (FACTORY_CD,PLC_SEQ);
+
+COMMENT ON TABLE MCC124 IS 'PLC' ;
+COMMENT ON COLUMN MCC124.FACTORY_CD     IS '공장코드' ;
+COMMENT ON COLUMN MCC124.PLC_SEQ        IS 'PLC 순번' ;
+COMMENT ON COLUMN MCC124.EQUIP_CD       IS '설비코드' ;
+COMMENT ON COLUMN MCC124.PLC_CD         IS 'PLC 코드' ;
+COMMENT ON COLUMN MCC124.PLC_NM         IS 'PLC명' ;
+COMMENT ON COLUMN MCC124.PLC_TYPE_CD    IS 'PLC 타입코드 (01:온도,02:속도,99:기타)' ;
+COMMENT ON COLUMN MCC124.USE_YN         IS '사용여부' ;
+COMMENT ON COLUMN MCC124.WRITE_DT       IS '등록일시' ;
+COMMENT ON COLUMN MCC124.WRITE_ID       IS '등록자' ;
+COMMENT ON COLUMN MCC124.UPDATE_DT      IS '수정일시' ;
+COMMENT ON COLUMN MCC124.UPDATE_ID      IS '수정자' ;
+
+
+
+---------------------------------------------------------------------------
+-- 생산지시 (확인:변경)
+---------------------------------------------------------------------------
+CREATE TABLE MPO009
+(
+    FACTORY_CD   VARCHAR(2) NOT NULL , 
+    PROD_SEQ     VARCHAR(20) NOT NULL , 
+    PROD_PO_NO   VARCHAR(20), 
+    ORD_DT       VARCHAR(8), 
+    ORD_CD       VARCHAR(30), 
+    ORDER_QTY    INTEGER,
+    PROD_TYPE_CD VARCHAR(30), 
+    PROD_BIGO    VARCHAR(200), 
+    PROD_STDT    VARCHAR(8), 
+    PO_CALLDT    VARCHAR(8), 
+    ITEM_CD      VARCHAR(30), 
+    BOM_VER      VARCHAR(20), 
+    BOM_STDT     VARCHAR(8), 
+    CUST_CD      VARCHAR(30), 
+    PO_QTY       INTEGER,
+    MD_DELIDT    VARCHAR(8),
+    PROD_DT      VARCHAR(8),
+    BIGO         VARCHAR(200), 
+    USE_YN       VARCHAR(1), 
+    WRITE_DT     TIMESTAMP,
+    WRITE_ID     VARCHAR(30),
+    UPDATE_DT    TIMESTAMP,
+    UPDATE_ID    VARCHAR(30) 
+)
+;
+
+CREATE UNIQUE INDEX XPK_MPO009 ON MPO009
+(FACTORY_CD ASC,PROD_SEQ ASC);
+
+ALTER TABLE MPO009
+    ADD CONSTRAINT PK_MPO009 PRIMARY KEY (FACTORY_CD,PROD_SEQ);
+
+COMMENT ON TABLE MPO009                  IS '재고 마감' ;
+COMMENT ON COLUMN MPO009.FACTORY_CD      IS '법인코드' ;
+COMMENT ON COLUMN MPO009.PROD_SEQ        IS '생산지순번' ;
+COMMENT ON COLUMN MPO009.PROD_PO_NO      IS '생산지시번호' ;
+COMMENT ON COLUMN MPO009.ORD_DT          IS '오더일자(미사용)' ;
+COMMENT ON COLUMN MPO009.ORD_CD          IS '오더번호(미사용)' ;
+COMMENT ON COLUMN MPO009.ORDER_QTY       IS '오더량(미사용)' ;
+COMMENT ON COLUMN MPO009.PROD_TYPE_CD    IS '생산지시상태코드:(WAT:대기,ING:작업중,END:완료,CAN:취소,STP:중지)' ;
+COMMENT ON COLUMN MPO009.PROD_BIGO       IS '생산지시상태비고(변경사유)' ;
+COMMENT ON COLUMN MPO009.PROD_STDT       IS '생산지시상태최종일자' ;
+COMMENT ON COLUMN MPO009.PO_CALLDT       IS '생산지시일자' ;
+COMMENT ON COLUMN MPO009.ITEM_CD         IS '제품코드' ;
+COMMENT ON COLUMN MPO009.BOM_VER         IS 'BOM버젼' ;
+COMMENT ON COLUMN MPO009.BOM_STDT        IS 'BOM시작일자' ;
+COMMENT ON COLUMN MPO009.CUST_CD         IS '납품처' ;
+COMMENT ON COLUMN MPO009.PO_QTY          IS '지시수량' ;
+COMMENT ON COLUMN MPO009.MD_DELIDT       IS '납기일' ;
+COMMENT ON COLUMN MPO009.PROD_DT         IS '제조일자(미사용)' ;
+COMMENT ON COLUMN MPO009.BIGO            IS '비고' ;
+COMMENT ON COLUMN MPO009.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MPO009.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MPO009.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MPO009.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MPO009.UPDATE_ID       IS '수정자' ;
+
+
+
+---------------------------------------------------------------------------
+-- 공정실적 마스터 (확인:신규)
+---------------------------------------------------------------------------
+CREATE TABLE MPO010
+(
+    FACTORY_CD      VARCHAR(2) NOT NULL ,  
+    WORKACT_MST_SEQ VARCHAR(20) NOT NULL , 
+    PROD_SEQ        VARCHAR(20),
+    OPER_CD         VARCHAR(30),
+    OPER_LVL        INTEGER,
+    LAST_OPER_YN    VARCHAR(1),
+    ITEM_CD         VARCHAR(30), 
+    ASSIGN_QTY      INTEGER,
+    WORK_QTY        INTEGER,
+    ACTOK_QTY       INTEGER,
+    ACTBAD_QTY      INTEGER,
+    CONFIRM_QTY     INTEGER,
+    USE_YN          VARCHAR(1), 
+    WRITE_DT        TIMESTAMP,
+    WRITE_ID        VARCHAR(30),
+    UPDATE_DT       TIMESTAMP,
+    UPDATE_ID       VARCHAR(30) 
+)
+;
+
+CREATE UNIQUE INDEX XPK_MPO010 ON MPO010
+(FACTORY_CD ASC,WORKACT_MST_SEQ ASC);
+
+ALTER TABLE MPO010
+    ADD CONSTRAINT PK_MPO010 PRIMARY KEY (FACTORY_CD,WORKACT_MST_SEQ);
+
+
+COMMENT ON TABLE MPO010                  IS '공정실적' ;
+COMMENT ON COLUMN MPO010.FACTORY_CD      IS '법인코드' ;
+COMMENT ON COLUMN MPO010.WORKACT_MST_SEQ IS '공정실적순번' ;
+-----------------------------------------------------------
+COMMENT ON COLUMN MPO010.PROD_SEQ        IS '작업지시순번' ;
+COMMENT ON COLUMN MPO010.OPER_CD         IS '공정코드' ;
+COMMENT ON COLUMN MPO010.OPER_LVL        IS '공정순서' ;
+COMMENT ON COLUMN MPO010.LAST_OPER_YN    IS '최종공정 여부 Y,N' ;
+COMMENT ON COLUMN MPO010.ITEM_CD         IS '품목코드' ;
+-----------------------------------------------------------
+COMMENT ON COLUMN MPO010.ASSIGN_QTY      IS '배정수량' ;
+COMMENT ON COLUMN MPO010.WORK_QTY        IS '작업수량' ;
+COMMENT ON COLUMN MPO010.ACTOK_QTY       IS '양품수량' ;
+COMMENT ON COLUMN MPO010.ACTBAD_QTY      IS '불량수량' ;
+COMMENT ON COLUMN MPO010.CONFIRM_QTY     IS '확정수량' ;
+-----------------------------------------------------------
+COMMENT ON COLUMN MPO010.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MPO010.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MPO010.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MPO010.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MPO010.UPDATE_ID       IS '수정자' ;
+
+---------------------------------------------------------------------------
+-- 생산실적
+---------------------------------------------------------------------------
+CREATE TABLE MPO011
+(
+    FACTORY_CD     VARCHAR(2) NOT NULL , 
+    WORKACT_SEQ    VARCHAR(20) NOT NULL , 
+    PROD_WA_NO     VARCHAR(50),  
+    PROD_SEQ       VARCHAR(20),
+    OPER_CD        VARCHAR(30), 
+    ITEM_CD        VARCHAR(30), 
+    WORK_DT        VARCHAR(8), 
+    WORKST_DT      VARCHAR(14), 
+    WORKED_DT      VARCHAR(14), 
+    PROD_TYPE_CD   VARCHAR(30), 
+    SABUN_ID       VARCHAR(30),    
+    EQUIP_CD       VARCHAR(30),
+    PO_QTY         INTEGER,
+    ACTOK_QTY      INTEGER,
+    ACTBAD_QTY     INTEGER,
+    WORKACT_BIGO   VARCHAR(200), 
+    CONFIRM_YN     VARCHAR(1), 
+    USE_YN         VARCHAR(1), 
+    WRITE_DT       TIMESTAMP,
+    WRITE_ID       VARCHAR(30),
+    UPDATE_DT      TIMESTAMP,
+    UPDATE_ID      VARCHAR(30) 
+)
+;
+
+CREATE UNIQUE INDEX XPK_MPO011 ON MPO011
+(FACTORY_CD ASC,WORKACT_SEQ ASC);
+
+ALTER TABLE MPO011
+    ADD CONSTRAINT PK_MPO011 PRIMARY KEY (FACTORY_CD,WORKACT_SEQ);
+
+COMMENT ON TABLE MPO011                  IS '재고 마감' ;
+COMMENT ON COLUMN MPO011.FACTORY_CD      IS '법인코드' ;
+COMMENT ON COLUMN MPO011.WORKACT_SEQ     IS '생산실적순번' ;
+COMMENT ON COLUMN MPO011.PROD_WA_NO      IS '생산실적번호(20211103-PO-001-01)' ;
+COMMENT ON COLUMN MPO011.PROD_SEQ        IS '작업지시순번' ;
+COMMENT ON COLUMN MPO011.OPER_CD         IS '공정코드' ;
+COMMENT ON COLUMN MPO011.ITEM_CD         IS '제품코드' ;
+-----------------------------------------------------
+-- 일자
+-----------------------------------------------------
+COMMENT ON COLUMN MPO011.WORK_DT         IS '작업시작일자' ;
+COMMENT ON COLUMN MPO011.WORKST_DT       IS '작업시작일시' ;
+COMMENT ON COLUMN MPO011.WORKED_DT       IS '작업종료일시' ;
+-----------------------------------------------------
+COMMENT ON COLUMN MPO011.PROD_TYPE_CD    IS '생산지시상태코드:(WAT:대기,ING:작업중,END:완료,CAN:취소,STP:중지)' ;
+COMMENT ON COLUMN MPO011.SABUN_ID        IS '작업자사번' ;
+COMMENT ON COLUMN MPO011.EQUIP_CD        IS '설비코드' ;
+-----------------------------------------------------
+-- 수량 
+-----------------------------------------------------
+COMMENT ON COLUMN MPO011.PO_QTY          IS '작지수량' ;
+COMMENT ON COLUMN MPO011.ACTOK_QTY       IS '양품수량' ;
+COMMENT ON COLUMN MPO011.ACTBAD_QTY      IS '불량수량' ;
+-----------------------------------------------------
+-- 기본컬럼 
+-----------------------------------------------------
+COMMENT ON COLUMN MPO011.WORKACT_BIGO    IS '비고' ;
+COMMENT ON COLUMN MPO011.CONFIRM_YN      IS '확정여부' ;
+COMMENT ON COLUMN MPO011.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MPO011.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MPO011.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MPO011.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MPO011.UPDATE_ID       IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- 완제품 QM (확인:변경)
+---------------------------------------------------------------------------
+CREATE TABLE MQC001
+(
+    FACTORY_CD     VARCHAR(2) NOT NULL , 
+    MQC_SEQ        VARCHAR(20) NOT NULL , 
+    PROD_QM_NO     VARCHAR(50),
+    PROD_SEQ       VARCHAR(20),
+    WORKACT_SEQ    VARCHAR(20),
+    ITEM_CD        VARCHAR(30), 
+    CHECK_QTY      NUMERIC(12,4),
+    ACTOK_QTY      NUMERIC(12,4),
+    ACTBAD_QTY     NUMERIC(12,4),
+    QM_STATE_CD    VARCHAR(30), 
+    QM_CHECKDT     VARCHAR(8), 
+    QM_CHECKID     VARCHAR(30),    
+    QM_REM         VARCHAR(255),
+    USE_YN         VARCHAR(1), 
+    WRITE_DT       TIMESTAMP,
+    WRITE_ID       VARCHAR(30),
+    UPDATE_DT      TIMESTAMP,
+    UPDATE_ID      VARCHAR(30) 
+)
+;
+
+CREATE UNIQUE INDEX XPK_MQC001 ON MQC001
+(FACTORY_CD ASC,MQC_SEQ ASC);
+
+ALTER TABLE MQC001
+    ADD CONSTRAINT PK_MQC001 PRIMARY KEY (FACTORY_CD,MQC_SEQ);
+
+COMMENT ON TABLE MQC001                  IS '완제품 QM' ;
+COMMENT ON COLUMN MQC001.FACTORY_CD      IS '법인코드' ;
+COMMENT ON COLUMN MQC001.MQC_SEQ         IS '완제품QM순번' ;
+COMMENT ON COLUMN MQC001.PROD_QM_NO      IS '검품번호(20211103-PO-001-01-01)' ;
+COMMENT ON COLUMN MQC001.PROD_SEQ        IS '작업지시순번' ;
+COMMENT ON COLUMN MQC001.WORKACT_SEQ     IS '생산실적순번' ;
+COMMENT ON COLUMN MQC001.ITEM_CD         IS '품목코드' ;
+COMMENT ON COLUMN MQC001.CHECK_QTY       IS '검품수량' ;
+COMMENT ON COLUMN MQC001.ACTOK_QTY       IS '양품수량' ;
+COMMENT ON COLUMN MQC001.ACTBAD_QTY      IS '불량수량' ;
+COMMENT ON COLUMN MQC001.QM_STATE_CD     IS '상태코드(생산완료:WK_END,QM대기:QM_WAT,QM완료:QM_END,창고입고:WH_IN)' ;
+COMMENT ON COLUMN MQC001.QM_CHECKDT      IS '검품일자' ;
+COMMENT ON COLUMN MQC001.QM_CHECKID      IS '검품자' ;
+COMMENT ON COLUMN MQC001.QM_REM          IS '비고' ;
+COMMENT ON COLUMN MQC001.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MQC001.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MQC001.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MQC001.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MQC001.UPDATE_ID       IS '수정자' ;
+
+
+
+---------------------------------------------------------------------------
+-- 완제품 QM 불량관리 (확인:그대로)
+---------------------------------------------------------------------------
+CREATE TABLE MQC002
+(
+    FACTORY_CD     VARCHAR(2) NOT NULL , 
+    MQC_SEQ        VARCHAR(20) NOT NULL ,
+    MQC_BAD_SEQ    VARCHAR(20) NOT NULL , 
+    BAD_CD         VARCHAR(30),
+    BAD_QTY        NUMERIC(12,4),
+    USE_YN         VARCHAR(1), 
+    WRITE_DT       TIMESTAMP,
+    WRITE_ID       VARCHAR(30),
+    UPDATE_DT      TIMESTAMP,
+    UPDATE_ID      VARCHAR(30) 
+)
+;
+
+CREATE UNIQUE INDEX XPK_MQC002 ON MQC002
+(FACTORY_CD ASC,MQC_SEQ ASC,MQC_BAD_SEQ ASC);
+
+ALTER TABLE MQC002
+    ADD CONSTRAINT PK_MQC002 PRIMARY KEY (FACTORY_CD,MQC_SEQ,MQC_BAD_SEQ);
+
+COMMENT ON TABLE MQC002                  IS '완제품 QM 불량관리' ;
+COMMENT ON COLUMN MQC002.FACTORY_CD      IS '법인코드' ;
+COMMENT ON COLUMN MQC002.MQC_SEQ         IS '완제품QM순번' ;
+COMMENT ON COLUMN MQC002.MQC_BAD_SEQ     IS '완제품QM불량순번' ;
+COMMENT ON COLUMN MQC002.BAD_CD          IS '불량코드' ;
+COMMENT ON COLUMN MQC002.BAD_QTY         IS '불량수량' ;
+COMMENT ON COLUMN MQC002.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MQC002.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MQC002.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MQC002.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MQC002.UPDATE_ID       IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- 제품 입고 마스터 (확인:변경)
+---------------------------------------------------------------------------
+CREATE TABLE MWP012
+(
+    FACTORY_CD      VARCHAR(2) NOT NULL , 
+    ITEMIN_SEQ      VARCHAR(20) NOT NULL , 
+    MQC_SEQ         VARCHAR(20),
+    ITEMIN_DT       VARCHAR(8), 
+    PROD_SEQ        VARCHAR(20),
+    WORKSHOP_CD     VARCHAR(30), 
+    ITEM_CD         VARCHAR(30),
+    ITEM_IN_TYPE_CD VARCHAR(30),
+    INOK_QTY        NUMERIC(12,4),
+    LOTID           VARCHAR(20),
+    USE_YN          VARCHAR(1),
+    WRITE_DT        TIMESTAMP,
+    WRITE_ID        VARCHAR(30),
+    UPDATE_DT       TIMESTAMP,
+    UPDATE_ID       VARCHAR(30)
+)
+;
+
+CREATE UNIQUE INDEX XPK_MWP012 ON MWP012
+(FACTORY_CD ASC,ITEMIN_SEQ ASC);
+
+ALTER TABLE MWP012
+    ADD CONSTRAINT PK_MWP012 PRIMARY KEY (FACTORY_CD,ITEMIN_SEQ);
+
+CREATE INDEX X01_MWP012 ON MWP012
+(LOTID ASC);
+
+
+COMMENT ON TABLE MWP012                  IS '제품입고마스터' ;
+COMMENT ON COLUMN MWP012.FACTORY_CD      IS '법인코드' ;
+COMMENT ON COLUMN MWP012.ITEMIN_SEQ      IS '제품입고순번' ;
+COMMENT ON COLUMN MWP012.MQC_SEQ         IS '완제품QM순번' ;
+COMMENT ON COLUMN MWP012.ITEMIN_DT       IS '입고일자' ;
+COMMENT ON COLUMN MWP012.PROD_SEQ        IS '작업지시순번' ;
+COMMENT ON COLUMN MWP012.WORKSHOP_CD     IS '창고코드' ;
+COMMENT ON COLUMN MWP012.ITEM_CD         IS '제품코드' ;
+COMMENT ON COLUMN MWP012.ITEM_IN_TYPE_CD IS '입고구분(입고:IN,입고취소:IN_CAN)' ;
+COMMENT ON COLUMN MWP012.INOK_QTY        IS '입고수량' ;
+COMMENT ON COLUMN MWP012.LOTID           IS '입고LOT번호' ;
+COMMENT ON COLUMN MWP012.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MWP012.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MWP012.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MWP012.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MWP012.UPDATE_ID       IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- 제품 출고 마스터 (확인:변경)
+---------------------------------------------------------------------------
+CREATE TABLE MWP015
+(
+    FACTORY_CD       VARCHAR(2) NOT NULL , 
+    ITEMOUT_SEQ      VARCHAR(20) NOT NULL , 
+    ITEMOUT_DT       VARCHAR(8), 
+    PROD_SEQ         VARCHAR(20), 
+    CUST_CD          VARCHAR(30), 
+    ITEM_CD          VARCHAR(30), 
+    ITEM_OUT_TYPE_CD VARCHAR(30), 
+    OUT_QTY          NUMERIC(12,4), 
+    LOTID            VARCHAR(20), 
+    LOT_OUT_ID       VARCHAR(20), 
+    USE_YN           VARCHAR(1), 
+    WRITE_DT         TIMESTAMP,
+    WRITE_ID         VARCHAR(30),
+    UPDATE_DT        TIMESTAMP,
+    UPDATE_ID        VARCHAR(30) 
+) 
+;
+
+CREATE UNIQUE INDEX XPK_MWP015 ON MWP015
+(FACTORY_CD ASC,ITEMOUT_SEQ ASC);
+
+ALTER TABLE MWP015
+    ADD CONSTRAINT PK_MWP015 PRIMARY KEY (FACTORY_CD,ITEMOUT_SEQ);
+
+CREATE INDEX X01_MWP015 ON MWP015
+(LOTID ASC);
+
+CREATE INDEX X03_MWP015 ON MWP015
+(LOT_OUT_ID ASC);
+
+COMMENT ON TABLE MWP015                   IS '제품출고마스터' ;
+COMMENT ON COLUMN MWP015.FACTORY_CD       IS '공장코드' ;
+COMMENT ON COLUMN MWP015.ITEMOUT_SEQ      IS '제품출고순번' ;
+COMMENT ON COLUMN MWP015.ITEMOUT_DT       IS '출고일자' ;
+COMMENT ON COLUMN MWP015.PROD_SEQ         IS '생산지시순번' ;
+COMMENT ON COLUMN MWP015.CUST_CD          IS '출고처(납품처)' ;
+COMMENT ON COLUMN MWP015.ITEM_CD          IS '제품코드' ;
+COMMENT ON COLUMN MWP015.ITEM_OUT_TYPE_CD IS '출고구분(제품출고:OUT,출고취소:OUT_CAN,재고조정:MODIFY)' ;
+COMMENT ON COLUMN MWP015.OUT_QTY          IS '출하수량' ;
+COMMENT ON COLUMN MWP015.LOTID            IS '입고LOT번호' ;
+COMMENT ON COLUMN MWP015.LOT_OUT_ID       IS '출고바코드LOT번호' ;
+COMMENT ON COLUMN MWP015.USE_YN           IS '사용여부' ;
+COMMENT ON COLUMN MWP015.WRITE_DT         IS '등록일시' ;
+COMMENT ON COLUMN MWP015.WRITE_ID         IS '등록자' ;
+COMMENT ON COLUMN MWP015.UPDATE_DT        IS '수정일시' ;
+COMMENT ON COLUMN MWP015.UPDATE_ID        IS '수정자' ;
+
+---------------------------------------------------------------------------
+-- 완재품 마감
+---------------------------------------------------------------------------
+CREATE TABLE MWP006
+(
+    FACTORY_CD      VARCHAR(2) NOT NULL ,
+    MENDYN_SEQ      VARCHAR(20) NOT NULL ,
+    ITEM_CD         VARCHAR(20) NOT NULL,
+    MAGAM_YYYYMM    VARCHAR(6),
+    MAGAM_YMD       VARCHAR(8),
+    MAGAM_YN        VARCHAR(1),
+    WORKSHOP_CD     VARCHAR(30),
+    AREA_CD         VARCHAR(30),
+    MCONTROL_DT     VARCHAR(14),
+    MCONTROL_ID     VARCHAR(30),
+    DEADLINE_ST_DT  VARCHAR(14),
+    DEADLINE_ED_DT  VARCHAR(14),
+    DEADLINE_QTY    NUMERIC(14,2),
+    USE_YN          VARCHAR(1),
+    WRITE_DT        TIMESTAMP,
+    WRITE_ID        VARCHAR(30),
+    UPDATE_DT       TIMESTAMP,
+    UPDATE_ID       VARCHAR(30)
+)
+;
+
+CREATE UNIQUE INDEX XPK_MWP006 ON MWP006
+(FACTORY_CD ASC,MENDYN_SEQ ASC,ITEM_CD ASC);
+
+ALTER TABLE MWP006
+    ADD CONSTRAINT PK_MWP006 PRIMARY KEY (FACTORY_CD,MENDYN_SEQ,ITEM_CD);
+
+COMMENT ON TABLE MWP006                  IS '완제품 마감' ;
+COMMENT ON COLUMN MWP006.FACTORY_CD      IS '법인코드' ;
+COMMENT ON COLUMN MWP006.MENDYN_SEQ      IS '재고순번' ;
+COMMENT ON COLUMN MWP006.ITEM_CD         IS '제품 코드' ;
+COMMENT ON COLUMN MWP006.MAGAM_YYYYMM    IS '마감년월' ;
+COMMENT ON COLUMN MWP006.MAGAM_YMD       IS '마감일' ;
+COMMENT ON COLUMN MWP006.MAGAM_YN        IS '마감여부' ;
+COMMENT ON COLUMN MWP006.WORKSHOP_CD     IS '창고코드' ;
+COMMENT ON COLUMN MWP006.AREA_CD         IS '구역코드' ;
+COMMENT ON COLUMN MWP006.DEADLINE_ST_DT  IS '마감 시작일시';
+COMMENT ON COLUMN MWP006.DEADLINE_ED_DT  IS '마감 종료일시';
+COMMENT ON COLUMN MWP006.DEADLINE_QTY    IS '마감 수량';
+COMMENT ON COLUMN MWP006.MCONTROL_DT     IS '마감 처리 일자' ;
+COMMENT ON COLUMN MWP006.MCONTROL_ID     IS '마감자' ;
+COMMENT ON COLUMN MWP006.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MWP006.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MWP006.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MWP006.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MWP006.UPDATE_ID       IS '수정자' ;
+
+---------------------------------------------------------------------------
+-- 시설
+---------------------------------------------------------------------------
+CREATE TABLE MCC903
+(
+    FACTORY_CD   VARCHAR(2) NOT NULL , 
+    DEVICE_CD    VARCHAR(30) NOT NULL , 
+    DEVICE_NM    VARCHAR(200),     
+    DEVICE_IP    VARCHAR(15), 
+    DEVICE_PORT  INTEGER, 
+    DEVICE_BIGO  VARCHAR(2000), 
+    USE_YN       VARCHAR(1), 
+    WRITE_DT     TIMESTAMP,
+    WRITE_ID     VARCHAR(30),
+    UPDATE_DT    TIMESTAMP,
+    UPDATE_ID    VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MCC903 ON MCC903
+(FACTORY_CD ASC,DEVICE_CD ASC);
+
+ALTER TABLE MCC903
+    ADD CONSTRAINT PK_MCC903 PRIMARY KEY (FACTORY_CD,DEVICE_CD);
+
+COMMENT ON TABLE MCC903                  IS '시설 정보' ;
+COMMENT ON COLUMN MCC903.FACTORY_CD      IS '공장코드' ;
+COMMENT ON COLUMN MCC903.DEVICE_CD       IS '시설코드' ;
+COMMENT ON COLUMN MCC903.DEVICE_NM       IS '시설명' ;
+COMMENT ON COLUMN MCC903.DEVICE_IP       IS '시설 아이피' ;
+COMMENT ON COLUMN MCC903.DEVICE_PORT     IS '시설 포트' ;
+COMMENT ON COLUMN MCC903.DEVICE_BIGO     IS '시설 비고' ;
+COMMENT ON COLUMN MCC903.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MCC903.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MCC903.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MCC903.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MCC903.UPDATE_ID       IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- 사용이력
+---------------------------------------------------------------------------
+CREATE TABLE MCC904
+(
+    FACTORY_CD   VARCHAR(2) NOT NULL , 
+    LOG_SEQ      VARCHAR(20) NOT NULL , 
+    LOGIN_ID     VARCHAR(30) NULL,
+    LOGIN_IP     VARCHAR(15) NULL, 
+    LOG_TYPE_CD  VARCHAR(30) NULL, 
+    PAGE_URL     VARCHAR(200) NULL,
+    WRITE_DT     TIMESTAMP,
+    INTERFACE_YN VARCHAR(1) NULL,
+    RESULT_CD     VARCHAR(6) NULL
+);
+
+CREATE UNIQUE INDEX XPK_MCC904 ON MCC904
+(FACTORY_CD ASC,LOG_SEQ ASC);
+
+ALTER TABLE MCC904
+    ADD CONSTRAINT PK_MCC904 PRIMARY KEY (FACTORY_CD,LOG_SEQ);
+
+COMMENT ON TABLE MCC904               IS '사용이력' ;
+COMMENT ON COLUMN MCC904.FACTORY_CD   IS '공장코드' ;
+COMMENT ON COLUMN MCC904.LOG_SEQ      IS '로그시퀀스' ;
+COMMENT ON COLUMN MCC904.LOGIN_ID     IS '아이디' ;
+COMMENT ON COLUMN MCC904.LOGIN_IP     IS '아이피' ;
+COMMENT ON COLUMN MCC904.LOG_TYPE_CD  IS '로그 타입 (L:로그인, P:페이지호출)' ;
+COMMENT ON COLUMN MCC904.PAGE_URL     IS '사용여부' ;
+COMMENT ON COLUMN MCC904.WRITE_DT     IS '등록일시' ;
+COMMENT ON COLUMN MCC904.INTERFACE_YN IS '로그연동여부' ;
+COMMENT ON COLUMN MCC904.RESULT_CD    IS '로그연동결과코드' ;
+
+
+---------------------------------------------------------------------------
+-- 공지사항
+---------------------------------------------------------------------------
+CREATE TABLE MCC905
+(
+    FACTORY_CD   VARCHAR(2) NOT NULL , 
+    NOTICE_SEQ   VARCHAR(20) NOT NULL , 
+    TITLE        VARCHAR(200),     
+    CONTENT      VARCHAR(4000),   
+    USE_YN       VARCHAR(1), 
+    WRITE_DT     TIMESTAMP,
+    WRITE_ID     VARCHAR(30),
+    UPDATE_DT    TIMESTAMP,
+    UPDATE_ID    VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MCC905 ON MCC905
+(FACTORY_CD ASC,NOTICE_SEQ ASC);
+
+ALTER TABLE MCC905
+    ADD CONSTRAINT PK_MCC905 PRIMARY KEY (FACTORY_CD,NOTICE_SEQ);
+
+COMMENT ON TABLE MCC905                  IS '공지사항' ;
+COMMENT ON COLUMN MCC905.FACTORY_CD      IS '공장코드' ;
+COMMENT ON COLUMN MCC905.NOTICE_SEQ      IS '시퀀스' ;
+COMMENT ON COLUMN MCC905.TITLE           IS '제목' ;
+COMMENT ON COLUMN MCC905.CONTENT         IS '내용' ;
+COMMENT ON COLUMN MCC905.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MCC905.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MCC905.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MCC905.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MCC905.UPDATE_ID       IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- 문서관리
+---------------------------------------------------------------------------
+CREATE TABLE MCC906
+(
+    FACTORY_CD    VARCHAR(2) NOT NULL , 
+    DOC_SEQ       VARCHAR(20) NOT NULL , 
+    DOC_NM        VARCHAR(30),
+    DOC_TYPE_CD   VARCHAR(30),   
+    DOC_FILE_PATH VARCHAR(500),
+    DOC_BIGO      VARCHAR(200),   
+    USE_YN        VARCHAR(1), 
+    WRITE_DT      TIMESTAMP,
+    WRITE_ID      VARCHAR(30),
+    UPDATE_DT     TIMESTAMP,
+    UPDATE_ID     VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MCC906 ON MCC906
+(FACTORY_CD ASC,DOC_SEQ ASC);
+
+ALTER TABLE MCC906
+    ADD CONSTRAINT PK_MCC906 PRIMARY KEY (FACTORY_CD,DOC_SEQ);
+
+COMMENT ON TABLE MCC906                  IS '문서관리' ;
+COMMENT ON COLUMN MCC906.FACTORY_CD      IS '공장코드' ;
+COMMENT ON COLUMN MCC906.DOC_SEQ         IS '시퀀스' ;
+COMMENT ON COLUMN MCC906.DOC_NM          IS '문서명' ;
+COMMENT ON COLUMN MCC906.DOC_TYPE_CD     IS '문서타입(수입검사성적서:IN,공정검사성적서:GJ,출하검사성적서:OUT)' ;
+COMMENT ON COLUMN MCC906.DOC_FILE_PATH   IS '문서경로' ;
+COMMENT ON COLUMN MCC906.DOC_BIGO        IS '문서비고' ;
+COMMENT ON COLUMN MCC906.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MCC906.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MCC906.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MCC906.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MCC906.UPDATE_ID       IS '수정자' ;
+
+---------------------------------------------------------------------------
+-- PLC 연계 데이터
+---------------------------------------------------------------------------
+CREATE TABLE MCC907
+(
+    EQUIP_CD        VARCHAR(30) NOT NULL ,
+    PLC_CD          VARCHAR(30) NOT NULL , 
+    PLC_STATUS_CD   VARCHAR(30),
+    EQUIP_STATUS_CD VARCHAR(30),
+    SING_VAL        INTEGER,
+    EQUIP_VAL       NUMERIC(12,4), 
+    UPDATE_DT       TIMESTAMP
+);
+
+CREATE UNIQUE INDEX XPK_MCC907 ON MCC907
+(EQUIP_CD ASC, PLC_CD ASC);
+
+ALTER TABLE MCC907
+    ADD CONSTRAINT PK_MCC907 PRIMARY KEY (EQUIP_CD, PLC_CD);
+
+COMMENT ON TABLE MCC907                  IS 'PLC연계' ;
+COMMENT ON COLUMN MCC907.EQUIP_CD        IS '설비코드' ;
+COMMENT ON COLUMN MCC907.PLC_CD          IS 'PLC 코드' ;
+COMMENT ON COLUMN MCC907.PLC_STATUS_CD   IS 'PLC 상태(0:정상,1:오류)' ;
+COMMENT ON COLUMN MCC907.EQUIP_STATUS_CD IS '설비 상태(0:가동중,1:에러,2:정지)(대상 아님 항상 0)' ;
+COMMENT ON COLUMN MCC907.SING_VAL        IS '부호값 (1,-1)' ;
+COMMENT ON COLUMN MCC907.EQUIP_VAL       IS 'PLC VALUE(온도값,속도값)' ;
+COMMENT ON COLUMN MCC907.UPDATE_DT       IS '수정일시' ;
+
+
+CREATE TABLE MCC908
+(
+    PLC_HIS_SEQ     BIGINT NOT NULL ,
+    EQUIP_CD        VARCHAR(30),
+    PLC_CD          VARCHAR(30),
+    PLC_STATUS_CD   VARCHAR(30),
+    EQUIP_STATUS_CD VARCHAR(30),
+    SING_VAL        INTEGER,
+    EQUIP_VAL       NUMERIC(12,4), 
+    WRITE_DT        TIMESTAMP
+);
+
+CREATE UNIQUE INDEX XPK_MCC908 ON MCC908
+(PLC_HIS_SEQ ASC);
+
+ALTER TABLE MCC908
+    ADD CONSTRAINT PK_MCC908 PRIMARY KEY (PLC_HIS_SEQ);
+
+CREATE INDEX X01_MCC908 ON MCC908
+(WRITE_DT ASC, EQUIP_CD ASC);
+
+COMMENT ON TABLE MCC908                  IS '문서관리' ;
+COMMENT ON COLUMN MCC908.EQUIP_CD        IS '설비코드' ;
+COMMENT ON COLUMN MCC908.PLC_CD          IS 'PLC 코드' ;
+COMMENT ON COLUMN MCC908.PLC_STATUS_CD   IS 'PLC 상태(0:정상,1:오류)' ;
+COMMENT ON COLUMN MCC908.EQUIP_STATUS_CD IS '설비 상태(0:가동중,1:에러,2:정지)' ;
+COMMENT ON COLUMN MCC908.SING_VAL        IS '부호값 (1,-1)' ;
+COMMENT ON COLUMN MCC908.EQUIP_VAL       IS 'PLC VALUE(온도값,속도값)' ;
+COMMENT ON COLUMN MCC908.WRITE_DT        IS '등록일시' ;
+
+CREATE SEQUENCE SEQ_MCC908 INCREMENT 1 MAXVALUE 9223372036854775807 START 1 CYCLE;
+
+
+---------------------------------------------------------------------------
+-- 첨부파일관리
+---------------------------------------------------------------------------
+CREATE TABLE MCC910
+(
+    FACTORY_CD    VARCHAR(2) NOT NULL , 
+    FILE_SEQ      VARCHAR(20) NOT NULL , 
+    FILE_KEY      VARCHAR(30),
+    FILE_NM          VARCHAR(16),
+    FILE_ORG_NM   VARCHAR(150),
+    FILE_PATH      VARCHAR(100),
+    FILE_TYPE      VARCHAR(100),
+    FILE_SIZE     NUMERIC(10),
+    USE_YN        VARCHAR(1), 
+    WRITE_DT      TIMESTAMP,
+    WRITE_ID      VARCHAR(30),
+    UPDATE_DT     TIMESTAMP,
+    UPDATE_ID     VARCHAR(30)
+);
+
+CREATE UNIQUE INDEX XPK_MCC910 ON MCC910
+(FACTORY_CD ASC,FILE_SEQ ASC);
+
+ALTER TABLE MCC910
+    ADD CONSTRAINT PK_MCC910 PRIMARY KEY (FACTORY_CD,FILE_SEQ);
+
+COMMENT ON TABLE MCC910                  IS '첨부파일관리' ;
+COMMENT ON COLUMN MCC910.FACTORY_CD      IS '공장코드' ;
+COMMENT ON COLUMN MCC910.FILE_SEQ        IS '파일순번' ;
+COMMENT ON COLUMN MCC910.FILE_KEY        IS '파일키(문서키값)' ;
+COMMENT ON COLUMN MCC910.FILE_NM         IS '파일명' ;
+COMMENT ON COLUMN MCC910.FILE_ORG_NM     IS '파일실제명' ;
+COMMENT ON COLUMN MCC910.FILE_PATH       IS '파일경로' ;
+COMMENT ON COLUMN MCC910.FILE_TYPE       IS '파일확장자' ;
+COMMENT ON COLUMN MCC910.FILE_SIZE       IS '파일크기' ;
+COMMENT ON COLUMN MCC910.USE_YN          IS '사용여부' ;
+COMMENT ON COLUMN MCC910.WRITE_DT        IS '등록일시' ;
+COMMENT ON COLUMN MCC910.WRITE_ID        IS '등록자' ;
+COMMENT ON COLUMN MCC910.UPDATE_DT       IS '수정일시' ;
+COMMENT ON COLUMN MCC910.UPDATE_ID       IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- 장비 설비 지정 (완료 보고용)
+---------------------------------------------------------------------------
+CREATE TABLE MCC088
+(
+    FACTORY_CD    VARCHAR(2) NOT NULL , 
+    WORK_SET_SEQ  VARCHAR(20) NOT NULL , 
+    PROD_SEQ      VARCHAR(20),
+    EQUIP_CD      VARCHAR(20), 
+    WORK_QTY      INTEGER,
+    USE_YN        VARCHAR(1), 
+    WRITE_DT      TIMESTAMP,
+    WRITE_ID      VARCHAR(30),
+    UPDATE_DT     TIMESTAMP,
+    UPDATE_ID     VARCHAR(30) 
+)
+;
+
+CREATE UNIQUE INDEX XPK_MCC088 ON MCC088
+(FACTORY_CD ASC,WORK_SET_SEQ ASC);
+
+ALTER TABLE MCC088
+    ADD CONSTRAINT PK_MCC088 PRIMARY KEY (FACTORY_CD,WORK_SET_SEQ);
+
+COMMENT ON TABLE MCC088 IS '장비설비지정' ;
+COMMENT ON COLUMN MCC088.FACTORY_CD     IS '공장코드' ;
+COMMENT ON COLUMN MCC088.WORK_SET_SEQ   IS '장비지정순번' ;
+COMMENT ON COLUMN MCC088.PROD_SEQ       IS '작업지시순번' ;
+COMMENT ON COLUMN MCC088.EQUIP_CD       IS '장비코드' ;
+COMMENT ON COLUMN MCC088.WORK_QTY       IS '장비배정수' ;
+COMMENT ON COLUMN MCC088.USE_YN         IS '사용여부' ;
+COMMENT ON COLUMN MCC088.WRITE_DT       IS '등록일시' ;
+COMMENT ON COLUMN MCC088.WRITE_ID       IS '등록자' ;
+COMMENT ON COLUMN MCC088.UPDATE_DT      IS '수정일시' ;
+COMMENT ON COLUMN MCC088.UPDATE_ID      IS '수정자' ;
+
+
+CREATE TABLE KPI001
+(
+    YYYY       VARCHAR(4),
+    PERIOD_MM  VARCHAR(4),    
+    WORK_HOUR  NUMERIC(12,4), 
+    WORK_QTY   NUMERIC(12,4), 
+    ERR_QTY    NUMERIC(12,4)
+)
+;
+-- PERIOD:0203 : 02~03월
+
+INSERT INTO KPI001 (YYYY,PERIOD_MM,WORK_HOUR,WORK_QTY,ERR_QTY) VALUES ('2020','10',167,14192,4687);
+INSERT INTO KPI001 (YYYY,PERIOD_MM,WORK_HOUR,WORK_QTY,ERR_QTY) VALUES ('2020','11',167,12865,3691);
+INSERT INTO KPI001 (YYYY,PERIOD_MM,WORK_HOUR,WORK_QTY,ERR_QTY) VALUES ('2020','12',167,13874,4356);
+
+INSERT INTO KPI001 (YYYY,PERIOD_MM,WORK_HOUR,WORK_QTY,ERR_QTY) VALUES ('2022','06',167,15512,3099);
+
+
+
+CREATE TABLE WATER001
+(
+    HOUR     VARCHAR(2),
+    MIN      VARCHAR(2),
+    BASE_VOL NUMERIC(12,4), 
+    IN_VOL   NUMERIC(12,4), 
+    OUT_VOL  NUMERIC(12,4)
+)
+;
+
+CREATE TABLE CROM001
+(
+    POS            INTEGER,
+    POS_NM         VARCHAR(30),
+    POS_TRAN_NM    VARCHAR(30),
+    POS_START_TIME TIMESTAMP, 
+    POS_PERIOD     INTEGER
+)
+;
+
+
+---------------------------------------------------------------------------
+-- 폐수 처리 
+---------------------------------------------------------------------------
+CREATE TABLE WPM001
+(
+    FACTORY_CD     VARCHAR(2) NOT NULL , 
+    WPM_SEQ        VARCHAR(20) NOT NULL , 
+    WPM_YYYY       VARCHAR(4),
+    WPM_DT         VARCHAR(8),
+    WPM_APPLY_NM   VARCHAR(200),
+    WPM_CD         VARCHAR(20),
+    WPM_CP_NM      VARCHAR(200),
+    DEBIT_AMOUNT   INTEGER,
+    CREDIT_AMOUNT  INTEGER,
+    BALANCE_AMOUNT INTEGER,
+    WWD_YN         VARCHAR(1), 
+    USE_YN         VARCHAR(1), 
+    WRITE_DT       TIMESTAMP,
+    WRITE_ID       VARCHAR(30),
+    UPDATE_DT      TIMESTAMP,
+    UPDATE_ID      VARCHAR(30) 
+)
+;
+
+CREATE UNIQUE INDEX XPK_WPM001 ON WPM001
+(FACTORY_CD ASC,WPM_SEQ ASC);
+
+ALTER TABLE WPM001
+    ADD CONSTRAINT PK_WPM001 PRIMARY KEY (FACTORY_CD,WPM_SEQ);
+
+COMMENT ON TABLE WPM001 IS '장비설비지정' ;
+COMMENT ON COLUMN WPM001.FACTORY_CD     IS '공장코드' ;
+COMMENT ON COLUMN WPM001.WPM_SEQ        IS '폐수처리순번' ;
+COMMENT ON COLUMN WPM001.WPM_YYYY       IS '적용년' ;
+COMMENT ON COLUMN WPM001.WPM_DT         IS '적용일' ;
+COMMENT ON COLUMN WPM001.WPM_APPLY_NM   IS '적요란명' ;
+COMMENT ON COLUMN WPM001.WPM_CD         IS '코드' ;
+COMMENT ON COLUMN WPM001.WPM_CP_NM      IS '거래처' ;
+COMMENT ON COLUMN WPM001.DEBIT_AMOUNT   IS '차변 금액' ;
+COMMENT ON COLUMN WPM001.CREDIT_AMOUNT  IS '대변 금액' ;
+COMMENT ON COLUMN WPM001.BALANCE_AMOUNT IS '잔액 금액' ;
+COMMENT ON COLUMN WPM001.WWD_YN         IS '폐수처리여부';
+COMMENT ON COLUMN WPM001.USE_YN         IS '사용여부' ;
+COMMENT ON COLUMN WPM001.WRITE_DT       IS '등록일시' ;
+COMMENT ON COLUMN WPM001.WRITE_ID       IS '등록자' ;
+COMMENT ON COLUMN WPM001.UPDATE_DT      IS '수정일시' ;
+COMMENT ON COLUMN WPM001.UPDATE_ID      IS '수정자' ;
+
+
+---------------------------------------------------------------------------
+-- 폐수 처리 임시
+---------------------------------------------------------------------------
+CREATE TABLE WPM001_TEMP
+(
+    FACTORY_CD     VARCHAR(2) NOT NULL , 
+    WPM_TMP        VARCHAR(20) NOT NULL , 
+    WPM_YYYY       VARCHAR(4),
+    WPM_DT         VARCHAR(8),
+    WPM_APPLY_NM   VARCHAR(200),
+    WPM_CD         VARCHAR(20),
+    WPM_CP_NM      VARCHAR(200),
+    DEBIT_AMOUNT   INTEGER,
+    CREDIT_AMOUNT  INTEGER,
+    BALANCE_AMOUNT INTEGER,
+    WWD_YN         VARCHAR(1),
+    USE_YN         VARCHAR(1), 
+    WRITE_DT       TIMESTAMP,
+    WRITE_ID       VARCHAR(30),
+    UPDATE_DT      TIMESTAMP,
+    UPDATE_ID      VARCHAR(30) 
+)
+;
+
+CREATE UNIQUE INDEX XPK_WPM001_TEMP ON WPM001_TEMP
+(FACTORY_CD ASC,WPM_TMP ASC);
+
+ALTER TABLE WPM001_TEMP
+    ADD CONSTRAINT PK_WPM001_TEMP PRIMARY KEY (FACTORY_CD,WPM_TMP);
+
+COMMENT ON TABLE WPM001_TEMP IS '장비설비지정' ;
+COMMENT ON COLUMN WPM001_TEMP.FACTORY_CD     IS '공장코드' ;
+COMMENT ON COLUMN WPM001_TEMP.WPM_TMP        IS '폐수처리순번' ;
+COMMENT ON COLUMN WPM001_TEMP.WPM_YYYY       IS '적용년' ;
+COMMENT ON COLUMN WPM001_TEMP.WPM_DT         IS '적용일' ;
+COMMENT ON COLUMN WPM001_TEMP.WPM_APPLY_NM   IS '적요란명' ;
+COMMENT ON COLUMN WPM001_TEMP.WPM_CD         IS '코드' ;
+COMMENT ON COLUMN WPM001_TEMP.WPM_CP_NM      IS '거래처' ;
+COMMENT ON COLUMN WPM001_TEMP.DEBIT_AMOUNT   IS '차변 금액' ;
+COMMENT ON COLUMN WPM001_TEMP.CREDIT_AMOUNT  IS '대변 금액' ;
+COMMENT ON COLUMN WPM001_TEMP.BALANCE_AMOUNT IS '잔액 금액' ;
+COMMENT ON COLUMN WPM001_TEMP.WWD_YN         IS '폐수처리여부';
+COMMENT ON COLUMN WPM001_TEMP.USE_YN         IS '사용여부' ;
+COMMENT ON COLUMN WPM001_TEMP.WRITE_DT       IS '등록일시' ;
+COMMENT ON COLUMN WPM001_TEMP.WRITE_ID       IS '등록자' ;
+COMMENT ON COLUMN WPM001_TEMP.UPDATE_DT      IS '수정일시' ;
+COMMENT ON COLUMN WPM001_TEMP.UPDATE_ID      IS '수정자' ;
+
+
+---------------------------
+-- MPL001 폐수처리
+-- MPL002 대차
+-- MPL003 크로메이트
+--------------------------
+
+---------------------------
+-- MPL001 폐수처리
+---------------------------
+CREATE TABLE MPL001
+(
+    FACTORY_CD VARCHAR(2) NOT NULL , 
+    MPL001_SEQ VARCHAR(20) NOT NULL,
+    DATE_TIME  VARCHAR(14),
+    FIT_1105   NUMERIC(10,2),
+    FIT_2205   NUMERIC(10,2),
+    FIT_3110   NUMERIC(10,2),
+    FIT_3113   NUMERIC(10,2),
+    FIT_3206   NUMERIC(10,2),
+    FIT_3211   NUMERIC(10,2),
+    RO1_OUTPUT NUMERIC(14,2),
+    RO2_OUTPUT NUMERIC(14,2),
+    USE_YN     VARCHAR(1), 
+    WRITE_DT   TIMESTAMP,
+    WRITE_ID   VARCHAR(30),
+    UPDATE_DT  TIMESTAMP,
+    UPDATE_ID  VARCHAR(30) 
+ 
+);
+
+CREATE UNIQUE INDEX XPK_MPL001 ON MPL001
+(FACTORY_CD ASC,MPL001_SEQ ASC);
+
+ALTER TABLE MPL001
+    ADD CONSTRAINT PK_MPL001 PRIMARY KEY (FACTORY_CD,MPL001_SEQ);
+
+COMMENT ON TABLE MPL001 IS '폐수 정보' ;
+COMMENT ON COLUMN MPL001.FACTORY_CD IS '공장코드' ;
+COMMENT ON COLUMN MPL001.MPL001_SEQ IS '폐수처리 순번';
+COMMENT ON COLUMN MPL001.DATE_TIME  IS 'recive date time';
+COMMENT ON COLUMN MPL001.FIT_1105   IS '전처리 유입수' ;
+COMMENT ON COLUMN MPL001.FIT_2205   IS 'UF 생산수' ;
+COMMENT ON COLUMN MPL001.FIT_3110   IS 'RO1 FEED' ;
+COMMENT ON COLUMN MPL001.FIT_3113   IS 'RO1 배출' ;
+COMMENT ON COLUMN MPL001.FIT_3206   IS 'RO2 FEED' ;
+COMMENT ON COLUMN MPL001.FIT_3211   IS 'R02 배출' ;
+COMMENT ON COLUMN MPL001.RO1_OUTPUT IS 'RO1 생산량(RO1 FEED - RO1 배출)' ;
+COMMENT ON COLUMN MPL001.RO2_OUTPUT IS 'RO2 생산량(RO2 FEED - R02 배출)' ;
+COMMENT ON COLUMN MPL001.USE_YN     IS '사용여부' ;
+COMMENT ON COLUMN MPL001.WRITE_DT   IS '등록일시' ;
+COMMENT ON COLUMN MPL001.WRITE_ID   IS '등록자' ;
+COMMENT ON COLUMN MPL001.UPDATE_DT  IS '수정일시' ;
+COMMENT ON COLUMN MPL001.UPDATE_ID  IS '수정자' ;
+
+--------------------------
+-- MPL002 대차 위치 정보
+--------------------------
+CREATE TABLE MPL002
+(
+    FACTORY_CD VARCHAR(2)  NOT NULL, 
+    MPL002_SEQ VARCHAR(20) NOT NULL,
+    DATE_TIME  VARCHAR(14) NOT NULL,
+    BOGIE      VARCHAR(1)  NOT NULL,
+    POS1       VARCHAR(1),
+    POS2       VARCHAR(1),
+    POS3       VARCHAR(1),
+    POS4       VARCHAR(1),
+    POS5       VARCHAR(1),
+    POS6       VARCHAR(1),
+    POS7       VARCHAR(1),
+    POS8       VARCHAR(1),
+    POS9       VARCHAR(1),
+    POS10      VARCHAR(1),
+    POS11      VARCHAR(1),
+    POS12      VARCHAR(1),
+    POS13      VARCHAR(1),
+    POS14      VARCHAR(1),
+    POS15      VARCHAR(1),
+    POS16      VARCHAR(1),
+    POS17      VARCHAR(1),
+    POS18      VARCHAR(1),
+    POS19      VARCHAR(1),
+    POS20      VARCHAR(1),
+    POS21      VARCHAR(1),
+    POS22      VARCHAR(1),
+    POS23      VARCHAR(1),
+    POS24      VARCHAR(1),
+    POS25      VARCHAR(1),
+    POS26      VARCHAR(1),
+    POS27      VARCHAR(1),
+    POS28      VARCHAR(1),
+    POS29      VARCHAR(1),
+    POS30      VARCHAR(1),
+    POS31      VARCHAR(1),
+    POS32      VARCHAR(1),
+    POS33      VARCHAR(1),
+    POS34      VARCHAR(1),
+    POS35      VARCHAR(1),
+    POS36      VARCHAR(1),
+    POS37      VARCHAR(1),
+    POS38      VARCHAR(1),
+    POS39      VARCHAR(1),
+    CHECK_POS  VARCHAR(40),
+    USE_YN     VARCHAR(1), 
+    WRITE_DT   TIMESTAMP,
+    WRITE_ID   VARCHAR(30),
+    UPDATE_DT  TIMESTAMP,
+    UPDATE_ID  VARCHAR(30) 
+);
+
+CREATE UNIQUE INDEX XPK_MPL002 ON MPL002
+(FACTORY_CD ASC,MPL002_SEQ ASC,DATE_TIME ASC,BOGIE ASC);
+
+ALTER TABLE MPL002
+    ADD CONSTRAINT PK_MPL002 PRIMARY KEY (FACTORY_CD,MPL002_SEQ,DATE_TIME,BOGIE);
+
+COMMENT ON TABLE MPL002 IS '대차 위치 정보' ;
+COMMENT ON COLUMN MPL002.FACTORY_CD IS '공장코드' ;
+COMMENT ON COLUMN MPL002.MPL002_SEQ IS '대차 순번';
+COMMENT ON COLUMN MPL002.DATE_TIME  IS 'recive date time';
+COMMENT ON COLUMN MPL002.BOGIE      IS '대차번호' ;
+COMMENT ON COLUMN MPL002.POS1       IS '초음파세척1';
+COMMENT ON COLUMN MPL002.POS2       IS '초음파세척2';
+COMMENT ON COLUMN MPL002.POS3       IS '수세1';
+COMMENT ON COLUMN MPL002.POS4       IS '수세2';
+COMMENT ON COLUMN MPL002.POS5       IS '수세3';
+COMMENT ON COLUMN MPL002.POS6       IS '침적탈지';
+COMMENT ON COLUMN MPL002.POS7       IS '에칭1';
+COMMENT ON COLUMN MPL002.POS8       IS '수세1';
+COMMENT ON COLUMN MPL002.POS9       IS '수세2';
+COMMENT ON COLUMN MPL002.POS10      IS '수세3';
+COMMENT ON COLUMN MPL002.POS11      IS '디스머트1 ';
+COMMENT ON COLUMN MPL002.POS12      IS '수세1';
+COMMENT ON COLUMN MPL002.POS13      IS '수세2';
+COMMENT ON COLUMN MPL002.POS14      IS '수세3';
+COMMENT ON COLUMN MPL002.POS15      IS '에칭2';
+COMMENT ON COLUMN MPL002.POS16      IS '수세1';
+COMMENT ON COLUMN MPL002.POS17      IS '수세2';
+COMMENT ON COLUMN MPL002.POS18      IS '수세3';
+COMMENT ON COLUMN MPL002.POS19      IS '디스머트2';
+COMMENT ON COLUMN MPL002.POS20      IS '수세1';
+COMMENT ON COLUMN MPL002.POS21      IS '수세2';
+COMMENT ON COLUMN MPL002.POS22      IS '수세3';
+COMMENT ON COLUMN MPL002.POS23      IS '중화';
+COMMENT ON COLUMN MPL002.POS24      IS '수세1';
+COMMENT ON COLUMN MPL002.POS25      IS '수세2';
+COMMENT ON COLUMN MPL002.POS26      IS '수세3';
+COMMENT ON COLUMN MPL002.POS27      IS '화성피막1';
+COMMENT ON COLUMN MPL002.POS28      IS '수세1';
+COMMENT ON COLUMN MPL002.POS29      IS '수세2';
+COMMENT ON COLUMN MPL002.POS30      IS '수세3';
+COMMENT ON COLUMN MPL002.POS31      IS '수세4';
+COMMENT ON COLUMN MPL002.POS32      IS '화성피막2';
+COMMENT ON COLUMN MPL002.POS33      IS '수세1';
+COMMENT ON COLUMN MPL002.POS34      IS '수세2';
+COMMENT ON COLUMN MPL002.POS35      IS '수세3';
+COMMENT ON COLUMN MPL002.POS36      IS '수세4';
+COMMENT ON COLUMN MPL002.POS37      IS '대차대기1';
+COMMENT ON COLUMN MPL002.POS38      IS '대차대기2';
+COMMENT ON COLUMN MPL002.POS39      IS '제품투입';
+COMMENT ON COLUMN MPL002.CHECK_POS  IS '체크';
+COMMENT ON COLUMN MPL002.USE_YN     IS '사용여부' ;
+COMMENT ON COLUMN MPL002.WRITE_DT   IS '등록일시' ;
+COMMENT ON COLUMN MPL002.WRITE_ID   IS '등록자' ;
+COMMENT ON COLUMN MPL002.UPDATE_DT  IS '수정일시' ;
+COMMENT ON COLUMN MPL002.UPDATE_ID  IS '수정자' ;
+
+--------------------------
+-- MPL003 크로메이트
+--------------------------
+CREATE TABLE MPL003
+(
+    FACTORY_CD              VARCHAR(2) NOT NULL , 
+    MPL003_SEQ              VARCHAR(20) NOT NULL,
+    DATE_TIME               VARCHAR(14),
+    ULTRASONIC_CLEANING1    NUMERIC(10,2),
+    ULTRASONIC_CLEANING2    NUMERIC(10,2),
+    IMMERSION_DEGREASING    NUMERIC(10,2),
+    ETCHING1                NUMERIC(10,2),
+    DESMUT1                 NUMERIC(10,2),
+    ETCHING2                NUMERIC(10,2),
+    DESMUT2                 NUMERIC(10,2),
+    NEUTRALIZE              NUMERIC(10,2),
+    CONVERSION_COATINGS1    NUMERIC(10,2),
+    CONVERSION_COATINGS2    NUMERIC(10,2),
+    ULTRASONIC_CLEANING1_SI NUMERIC(10,2),
+    ULTRASONIC_CLEANING2_SI NUMERIC(10,2),
+    IMMERSION_DEGREASING_SI NUMERIC(10,2),
+    ETCHING1_SI             NUMERIC(10,2),
+    DESMUT1_SI              NUMERIC(10,2),
+    ETCHING2_SI             NUMERIC(10,2),
+    DESMUT2_SI              NUMERIC(10,2),
+    NEUTRALIZE_SI           NUMERIC(10,2),
+    CONVERSION_COATINGS1_SI NUMERIC(10,2),
+    CONVERSION_COATINGS2_SI NUMERIC(10,2),
+    USE_YN                  VARCHAR(1), 
+    WRITE_DT                TIMESTAMP,
+    WRITE_ID                VARCHAR(30),
+    UPDATE_DT               TIMESTAMP,
+    UPDATE_ID               VARCHAR(30) 
+);
+
+CREATE UNIQUE INDEX XPK_MPL003 ON MPL003
+(FACTORY_CD ASC,MPL003_SEQ ASC);
+
+ALTER TABLE MPL003
+    ADD CONSTRAINT PK_MPL003 PRIMARY KEY (FACTORY_CD,MPL003_SEQ);
+
+COMMENT ON TABLE MPL003 IS '도금(크로메이트)' ;
+
+COMMENT ON COLUMN MPL003.FACTORY_CD              IS '공장코드' ;
+COMMENT ON COLUMN MPL003.MPL003_SEQ              IS '도금 순번';
+COMMENT ON COLUMN MPL003.DATE_TIME               IS 'recive date time';
+COMMENT ON COLUMN MPL003.ULTRASONIC_CLEANING1    IS '초음파세척1' ;
+COMMENT ON COLUMN MPL003.ULTRASONIC_CLEANING2    IS '초음파세척2' ;
+COMMENT ON COLUMN MPL003.IMMERSION_DEGREASING    IS '침적탈지' ;
+COMMENT ON COLUMN MPL003.ETCHING1                IS '에칭1' ;
+COMMENT ON COLUMN MPL003.DESMUT1                 IS '디스머트1' ;
+COMMENT ON COLUMN MPL003.ETCHING2                IS '에칭2' ;
+COMMENT ON COLUMN MPL003.DESMUT2                 IS '디스머트2' ;
+COMMENT ON COLUMN MPL003.NEUTRALIZE              IS '중화' ;
+COMMENT ON COLUMN MPL003.CONVERSION_COATINGS1    IS '화성피막1' ;
+COMMENT ON COLUMN MPL003.CONVERSION_COATINGS2    IS '화성피막2' ;
+COMMENT ON COLUMN MPL003.ULTRASONIC_CLEANING1_SI IS '초음파세척1 시간(초)' ;
+COMMENT ON COLUMN MPL003.ULTRASONIC_CLEANING2_SI IS '초음파세척2 시간(초)' ;
+COMMENT ON COLUMN MPL003.IMMERSION_DEGREASING_SI IS '침적탈지 시간(초)' ;
+COMMENT ON COLUMN MPL003.ETCHING1_SI             IS '에칭1 시간(초)' ;
+COMMENT ON COLUMN MPL003.DESMUT1_SI              IS '디스머트1 시간(초)' ;
+COMMENT ON COLUMN MPL003.ETCHING2_SI             IS '에칭2 시간(초)' ;
+COMMENT ON COLUMN MPL003.DESMUT2_SI              IS '디스머트2 시간(초)' ;
+COMMENT ON COLUMN MPL003.NEUTRALIZE_SI           IS '중화 시간(초)' ;
+COMMENT ON COLUMN MPL003.CONVERSION_COATINGS1_SI IS '화성피막1 시간(초)' ;
+COMMENT ON COLUMN MPL003.CONVERSION_COATINGS2_SI IS '화성피막2 시간(초)' ;
+COMMENT ON COLUMN MPL003.USE_YN                  IS '사용여부' ;
+COMMENT ON COLUMN MPL003.WRITE_DT                IS '등록일시' ;
+COMMENT ON COLUMN MPL003.WRITE_ID                IS '등록자' ;
+COMMENT ON COLUMN MPL003.UPDATE_DT               IS '수정일시' ;
+COMMENT ON COLUMN MPL003.UPDATE_ID               IS '수정자' ;
+
+
+--------------------------
+-- 재고실사표
+--------------------------
+CREATE TABLE MIR001
+(
+    FACTORY_CD   VARCHAR(2)  NOT NULL , 
+    MIR001_SEQ   VARCHAR(20) NOT NULL,
+    INPUT_DATE   VARCHAR(8)  NOT NULL,
+    SORT_NUM     INTEGER,
+    WAREHOUSE_CD VARCHAR(20),
+    ITEM_CD      VARCHAR(20),
+    ACTOK_QTY    NUMERIC(10,2),
+    ACTBAD_QTY   NUMERIC(10,2),
+    ACT_QTY      NUMERIC(10,2),
+    REALOK_QTY   NUMERIC(10,2),
+    REALBAD_QTY  NUMERIC(10,2),
+    REAL_QTY     NUMERIC(10,2),
+    DIFF_QTY     NUMERIC(10,2),
+    USE_YN       VARCHAR(1), 
+    WRITE_DT     TIMESTAMP,
+    WRITE_ID     VARCHAR(30),
+    UPDATE_DT    TIMESTAMP,
+    UPDATE_ID    VARCHAR(30) 
+);
+
+CREATE UNIQUE INDEX XPK_MIR001 ON MIR001
+(FACTORY_CD ASC,MIR001_SEQ ASC, INPUT_DATE ASC);
+
+ALTER TABLE MIR001
+    ADD CONSTRAINT PK_MIR001 PRIMARY KEY (FACTORY_CD,MIR001_SEQ, INPUT_DATE);
+
+COMMENT ON TABLE MIR001 IS '재고실사표' ;
+
+COMMENT ON COLUMN MIR001.FACTORY_CD   IS '공장코드' ;
+COMMENT ON COLUMN MIR001.MIR001_SEQ   IS '재고실사표 순번';
+COMMENT ON COLUMN MIR001.INPUT_DATE   IS '재고실사표 입력일';
+COMMENT ON COLUMN MIR001.SORT_NUM     IS '번호';
+COMMENT ON COLUMN MIR001.WAREHOUSE_CD IS '창고 코드';
+COMMENT ON COLUMN MIR001.ITEM_CD      IS '아이템 코드';
+COMMENT ON COLUMN MIR001.ACTOK_QTY    IS '전산양품수량';
+COMMENT ON COLUMN MIR001.ACTBAD_QTY   IS '전산불량수량';
+COMMENT ON COLUMN MIR001.ACT_QTY      IS '전산수량';
+COMMENT ON COLUMN MIR001.REALOK_QTY   IS '실사양품수량';
+COMMENT ON COLUMN MIR001.REALBAD_QTY  IS '실사양품불량';
+COMMENT ON COLUMN MIR001.REAL_QTY     IS '실사수량';
+COMMENT ON COLUMN MIR001.DIFF_QTY     IS '차이수량';
+COMMENT ON COLUMN MIR001.USE_YN       IS '사용여부' ;
+COMMENT ON COLUMN MIR001.WRITE_DT     IS '등록일시' ;
+COMMENT ON COLUMN MIR001.WRITE_ID     IS '등록자' ;
+COMMENT ON COLUMN MIR001.UPDATE_DT    IS '수정일시' ;
+COMMENT ON COLUMN MIR001.UPDATE_ID    IS '수정자' ;
